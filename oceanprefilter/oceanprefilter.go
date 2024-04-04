@@ -1,5 +1,5 @@
-// Package ocean_prefilter implements a classifier for interesting events on the open waters, as a Viam vision service
-package ocean_prefilter
+// Package oceanprefilter implements a classifier for interesting events on the open waters, as a Viam vision service
+package oceanprefilter
 
 import (
 	"context"
@@ -26,8 +26,6 @@ const (
 	ModelName = "ocean-prefilter"
 	// DefaulMaxFrequency is how often the vision service will poll the camera for a new image
 	DefaultMaxFrequency = 10.0
-	triggerFalse        = 0
-	triggerTrue         = 1
 	triggerClassName    = "TRIGGER"
 )
 
@@ -72,7 +70,7 @@ type prefilter struct {
 	cancelFunc              context.CancelFunc
 	cancelContext           context.Context
 	activeBackgroundWorkers sync.WaitGroup
-	triggerFlag             *int32 // will be a shared variable
+	triggerFlag             *atomic.Bool // will be a shared variable
 	camName                 string
 }
 
@@ -88,13 +86,11 @@ type runConfig struct {
 
 // newPrefilter creates the vision service classifier
 func newPrefilter(ctx context.Context, deps resource.Dependencies, conf resource.Config, logger logging.Logger) (vision.Service, error) {
-	var triggerFlag int32
 	pf := &prefilter{
-		Named:       conf.ResourceName().AsNamed(),
-		logger:      logger,
-		triggerFlag: &triggerFlag,
+		Named:  conf.ResourceName().AsNamed(),
+		logger: logger,
 	}
-	atomic.StoreInt32(pf.triggerFlag, triggerFalse)
+	pf.triggerFlag.Store(false)
 
 	if err := pf.Reconfigure(ctx, deps, conf); err != nil {
 		return nil, err
@@ -104,13 +100,12 @@ func newPrefilter(ctx context.Context, deps resource.Dependencies, conf resource
 
 // Reconfigure reconfigures prefilter with new settings from the config. It stops the old stream and starts a new one.
 func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies, conf resource.Config) error {
-	// first check if there is a stream already running that needs to be closed
+	// first check if there is a stream controled by the context already running that needs to be closed
 	if pf.cancelFunc != nil {
-		if err := pf.Close(ctx); err != nil {
-			return err
-		}
+		pf.cancelFunc()
+		pf.activeBackgroundWorkers.Wait()
 	}
-	atomic.StoreInt32(pf.triggerFlag, triggerFalse)
+	pf.triggerFlag.Store(false)
 	cancelableCtx, cancel := context.WithCancel(context.Background())
 	pf.cancelFunc = cancel
 	pf.cancelContext = cancelableCtx
@@ -154,7 +149,7 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 		for {
 			runErr := run(pf.cancelContext, rc, pf.triggerFlag)
 			if runErr != nil {
-				pf.logger.Error(runErr)
+				pf.logger.Errorw("background camera stream exited with error", "error", runErr)
 				continue // keep trying to run, forever
 			}
 			return
@@ -167,7 +162,7 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 
 // run sets up a camera stream and then takes new pictures and processes them for anomalies
 // at the desired frequency.
-func run(ctx context.Context, rc runConfig, trigger *int32) error {
+func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 	if rc.cam == nil {
 		return errors.Errorf("underlying camera %q is nil, cannot start background stream", rc.camName)
 	}
@@ -184,23 +179,26 @@ func run(ctx context.Context, rc runConfig, trigger *int32) error {
 			start := time.Now()
 			img, release, err := stream.Next(ctx)
 			if err != nil {
-				atomic.StoreInt32(trigger, triggerFalse)
+				trigger.Store(false)
 				release()
 				return err
 			}
 			isTriggered, err := theFilter(img) // bogus stand in function for now
 			if isTriggered {
-				atomic.StoreInt32(trigger, triggerTrue)
+				trigger.Store(true)
 			} else {
-				atomic.StoreInt32(trigger, triggerFalse)
+				trigger.Store(false)
 			}
 			release()
 
-			done := time.Now()
-			took := done.Sub(start)
+			took := time.Since(start)
 			waitFor := time.Duration((1/rc.frequency)*float64(time.Second)) - took // only poll according to set freq
 			if waitFor > time.Microsecond {
-				time.Sleep(waitFor)
+				select {
+				case <-ctx.Done():
+					return nil
+				case <-time.After(waitFor):
+				}
 			}
 		}
 	}
@@ -234,16 +232,16 @@ func (pf *prefilter) ClassificationsFromCamera(
 	extra map[string]interface{},
 ) (classification.Classifications, error) {
 	if cameraName != pf.camName {
-		return nil, errors.Errorf("Camera name given to method, %v is not the same as configured camera %v", cameraName, pf.camName)
+		return nil, errors.Errorf("camera name given to method, %v is not the same as configured camera %v", cameraName, pf.camName)
 	}
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, errors.Wrap(ctx.Err(), "module might be configuring")
 	case <-pf.cancelContext.Done():
-		return nil, pf.cancelContext.Err()
+		return nil, errors.Wrap(pf.cancelContext.Err(), "lost connection with background camera stream loop")
 	default:
 		cls := []classification.Classification{}
-		if atomic.LoadInt32(pf.triggerFlag) == triggerTrue {
+		if pf.triggerFlag.Load() {
 			c := classification.NewClassification(1.0, triggerClassName)
 			cls = append(cls, c)
 		}
@@ -256,12 +254,12 @@ func (pf *prefilter) Classifications(ctx context.Context, img image.Image,
 ) (classification.Classifications, error) {
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, errors.Wrap(ctx.Err(), "module might be configuring")
 	case <-pf.cancelContext.Done():
-		return nil, pf.cancelContext.Err()
+		return nil, errors.Wrap(pf.cancelContext.Err(), "lost connection with background camera stream loop")
 	default:
 		cls := []classification.Classification{}
-		if atomic.LoadInt32(pf.triggerFlag) == triggerTrue {
+		if pf.triggerFlag.Load() {
 			c := classification.NewClassification(1.0, triggerClassName)
 			cls = append(cls, c)
 		}
