@@ -1,7 +1,6 @@
 package oceanprefilter
 
 import (
-	"context"
 	"fmt"
 	"image"
 	"image/draw"
@@ -9,7 +8,7 @@ import (
 	"gocv.io/x/gocv"
 )
 
-func findHorizonLine(ctx context.Context, pic image.Image) ([]image.Point, error) {
+func findHorizonLine(pic image.Image) ([]image.Point, error) {
 	// make gray
 	gray := toGray(pic)
 	grayMat, err := gocv.ImageGrayToMatGray(gray)
@@ -55,8 +54,8 @@ func toGray(pic image.Image) *image.Gray {
 	return gray
 }
 
-// crop the image from yValue -> img.Bounds().Max.Y, and then split the cropped image into n horizontal bands
-// of equal width
+// crop the image from yValue -> img.Bounds().Max.Y
+// and then split the cropped image into n horizontal bands of equal height
 func splitUpImage(img image.Image, yValue, n int) ([]image.Image, error) {
 	if n <= 0 {
 		return nil, fmt.Errorf("n must be greater than 0")
@@ -73,10 +72,11 @@ func splitUpImage(img image.Image, yValue, n int) ([]image.Image, error) {
 	draw.Draw(croppedImg, croppedImg.Bounds(), img, image.Point{bounds.Min.X, yValue}, draw.Src)
 
 	// Split the cropped image into n horizontal bands
-	bandWidth := croppedImg.Bounds().Dx() / n
+	imageWidth := croppedImg.Bounds().Dx()
+	bandHeight := croppedImg.Bounds().Dy() / n
 	images := make([]image.Image, n)
 	for i := 0; i < n; i++ {
-		bandRect := image.Rect(i*bandWidth, 0, (i+1)*bandWidth, croppedImg.Bounds().Dy())
+		bandRect := image.Rect(0, i*bandHeight, imageWidth, (i+1)*bandHeight)
 		bandImg := image.NewRGBA(bandRect)
 		draw.Draw(bandImg, bandImg.Bounds(), croppedImg, bandRect.Min, draw.Src)
 		images[i] = bandImg
