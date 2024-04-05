@@ -31,7 +31,7 @@ const (
 
 var (
 	// Model is the resource
-	Model            = resource.NewModel("viam", "vision", ModelName)
+	Model            = resource.NewModel("viam-labs", "vision", ModelName)
 	errUnimplemented = errors.New("unimplemented")
 )
 
@@ -86,9 +86,11 @@ type runConfig struct {
 
 // newPrefilter creates the vision service classifier
 func newPrefilter(ctx context.Context, deps resource.Dependencies, conf resource.Config, logger logging.Logger) (vision.Service, error) {
+	var triggerFlag atomic.Bool
 	pf := &prefilter{
-		Named:  conf.ResourceName().AsNamed(),
-		logger: logger,
+		Named:       conf.ResourceName().AsNamed(),
+		logger:      logger,
+		triggerFlag: &triggerFlag,
 	}
 	pf.triggerFlag.Store(false)
 
@@ -183,7 +185,9 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 				release()
 				return err
 			}
-			isTriggered, err := theFilter(img) // bogus stand in function for now
+			horizonLine, err := findHorizonLine(ctx, img)
+			fmt.Printf("horizon line is : %v\n", horizonLine)
+			isTriggered, err := mlFilter(ctx, img, rc) // bogus stand in function for now
 			if isTriggered {
 				trigger.Store(true)
 			} else {

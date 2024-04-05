@@ -6,7 +6,7 @@
   "models": [
     {
       "api": "rdk:service:vision",
-      "model": "viam:vision:ocean-prefilter"
+      "model": "viam-labs:vision:ocean-prefilter"
     }
   ],
   "entrypoint": "ocean-prefilter"
