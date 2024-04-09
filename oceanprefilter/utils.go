@@ -58,7 +58,7 @@ func toGray(pic image.Image) *image.Gray {
 
 // crop the image from yValue -> img.Bounds().Max.Y
 // and then split the cropped image into nh horizontal and nv vertical bands of equal height and width
-func splitUpImage(img image.Image, exZone image.Rectangle, yValue, nh, nv int) ([]image.Image, error) {
+func splitUpImage(img image.Image, exZone *image.Rectangle, yValue, nh, nv int) ([]image.Image, error) {
 	if img == nil {
 		return nil, errors.New("input image to split up is nil")
 	}
@@ -76,8 +76,13 @@ func splitUpImage(img image.Image, exZone image.Rectangle, yValue, nh, nv int) (
 		return nil, fmt.Errorf("yValue must be within the image bounds")
 	}
 	// edit exluded zone to take the crop into account
-	exZone.Min.Y = exZone.Min.Y - yValue
-	exZone.Max.Y = exZone.Max.Y - yValue
+	excludedBox := image.Rectangle{}
+	if exZone != nil {
+		excludedBox.Min.X = exZone.Min.X
+		excludedBox.Min.Y = exZone.Min.Y - yValue
+		excludedBox.Max.X = exZone.Max.X
+		excludedBox.Max.Y = exZone.Max.Y - yValue
+	}
 	croppedRect := image.Rect(bounds.Min.X, yValue, bounds.Max.X, bounds.Max.Y)
 	croppedImg := image.NewRGBA(croppedRect)
 	draw.Draw(croppedImg, croppedImg.Bounds(), img, croppedRect.Min, draw.Src)
@@ -91,7 +96,7 @@ func splitUpImage(img image.Image, exZone image.Rectangle, yValue, nh, nv int) (
 		for j := 0; j < nv; j++ {
 			bandRect := image.Rect(j*bandWidth, i*bandHeight, (j+1)*bandWidth, (i+1)*bandHeight)
 			// if rect in excluded zone, skip it
-			if bandRect.Overlaps(exZone) {
+			if exZone != nil && bandRect.Overlaps(excludedBox) {
 				continue
 			}
 			bandImg := image.NewRGBA(bandRect)

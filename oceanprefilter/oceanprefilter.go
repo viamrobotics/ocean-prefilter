@@ -45,11 +45,12 @@ func init() {
 
 // Config contains names for necessary resources (camera and vision service)
 type Config struct {
-	CameraName   string             `json:"camera_name"`
-	DetectorName string             `json:"detector_name"`
-	ChosenLabels map[string]float64 `json:"chosen_labels"`
-	MaxFrequency float64            `json:"max_frequency_hz"`
-	Threshold    float64            `json:"threshold"`
+	CameraName     string             `json:"camera_name"`
+	DetectorName   string             `json:"detector_name"`
+	ChosenLabels   map[string]float64 `json:"chosen_labels"`
+	MaxFrequency   float64            `json:"max_frequency_hz"`
+	Threshold      float64            `json:"threshold"`
+	ExcludedRegion []int              `json:"excluded_region"`
 }
 
 // Validate validates the config and returns implicit dependencies,
@@ -79,6 +80,7 @@ type prefilter struct {
 
 // runConfig are the settings that will be fed to the background thread that will constantly be evaluating images for events
 type runConfig struct {
+	logger        logging.Logger
 	cam           camera.Camera
 	camName       string
 	detector      vision.Service
@@ -86,7 +88,7 @@ type runConfig struct {
 	frequency     float64
 	minConfidence float64
 	threshold     float64
-	excludedZone  image.Rectangle
+	excludedZone  *image.Rectangle
 }
 
 // newPrefilter creates the vision service classifier
@@ -125,6 +127,7 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 
 	// the run config will store the relevant variables from the prefilterConfig for running
 	rc := runConfig{}
+	rc.logger = pf.logger
 	// now load the relevant info into the runConfig
 	if prefilterConfig.MaxFrequency < 0 {
 		return errors.New("frequency(Hz) must be a non-negative number")
@@ -149,6 +152,14 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 	}
 	rc.chosenLabels = prefilterConfig.ChosenLabels // if you configred an optional detector, this determines the labels and confidences to use
 	rc.threshold = prefilterConfig.Threshold
+	if len(prefilterConfig.ExcludedRegion) != 0 {
+		if len(prefilterConfig.ExcludedRegion) != 4 {
+			return errors.Errorf("excluded_region must have four numbers that represent upper left and lower right corner of the excluded region in pixels. Instead got a list of %v elements", len(prefilterConfig.ExcludedRegion))
+		}
+		er := prefilterConfig.ExcludedRegion
+		theZone := image.Rectangle{image.Point{er[0], er[1]}, image.Point{er[2], er[3]}}
+		rc.excludedZone = &theZone
+	}
 
 	// now start the background thread
 	pf.activeBackgroundWorkers.Add(1)
@@ -173,7 +184,6 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 	count := 0
 	triggerCount := 0
-	rc.excludedZone = image.Rect(234, 373, 619, 480)
 	if rc.cam == nil {
 		return errors.Errorf("underlying camera %q is nil, cannot start background stream", rc.camName)
 	}
@@ -186,7 +196,6 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 	oldHists := []Histogram{}
 	for {
 		count++
-		fmt.Printf("count: %v\n", count)
 		select {
 		case <-ctx.Done():
 			return nil
@@ -197,13 +206,10 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 				trigger.Store(false)
 				return err
 			}
-			if dImg, ok := img.(*rimage.LazyEncodedImage); ok {
-				img = dImg.DecodedImage()
-			}
 			//isTriggered, err := mlFilter(ctx, img, rc)
 			isTriggered, newHists, err := histogramChangeFilter(oldHists, img, rc)
 			if err != nil {
-				fmt.Printf("error: %v\n", err.Error())
+				rc.logger.Warnw("encountered error and resetting histograms", "error", err.Error())
 			}
 			if isTriggered {
 				triggerCount = triggerCountdown
@@ -215,8 +221,11 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 				trigger.Store(false)
 			}
 			oldHists = newHists
+			if trigger.Load() {
+				fmt.Printf("trigger %v is: %v\n", count, trigger.Load())
+				rimage.SaveImage(img, fmt.Sprintf("/tmp/tests/%v.jpeg", count))
+			}
 			release()
-			fmt.Printf("trigger is: %v\n", trigger.Load())
 
 			took := time.Since(start)
 			waitFor := time.Duration((1/rc.frequency)*float64(time.Second)) - took // only poll according to set freq

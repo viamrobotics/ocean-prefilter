@@ -71,13 +71,16 @@ func histogramChangeFilter(
 	}
 	newHists := []Histogram{} // a histogram for each RGB channel
 	trigger := false
+	if !firstHist && len(imgs) != len(oldHists) {
+		return false, nil, errors.New("image changed drastically, cannot evaluate histogram difference. Can be caused by large amounts of motion")
+	}
 	for i, img := range imgs {
-		colorHists := createGrayHistograms(img)
-		for coli, h := range colorHists {
+		resultHists := createGrayHistograms(img)
+		for j, h := range resultHists {
 			newHist := h
 			splitTrigger := false
 			if !firstHist {
-				oldHist := oldHists[i*len(colorHists)+coli]
+				oldHist := oldHists[i*len(resultHists)+j]
 				if len(oldHist.Buckets) != len(newHist.Buckets) {
 					return false, nil, errors.Errorf("hists should have same number of buckets, old hist: %v, new hist: %v", len(oldHist.Buckets), len(newHist.Buckets))
 				}
@@ -85,7 +88,6 @@ func histogramChangeFilter(
 			}
 			newHists = append(newHists, newHist)
 			if splitTrigger {
-				fmt.Printf("image %v, channel %v\n", i, coli)
 				trigger = true
 			}
 		}
@@ -102,7 +104,6 @@ func histogramTrigger(oldHist, newHist Histogram, thresh float64) bool {
 	result := kolmogorovSmirnovTest(ecdf1, ecdf2)
 	trigger := false
 	if result >= thresh {
-		fmt.Printf("score is %v\n", result)
 		trigger = true
 	}
 	return trigger
