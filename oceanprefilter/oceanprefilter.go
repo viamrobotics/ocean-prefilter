@@ -14,7 +14,6 @@ import (
 	"go.viam.com/rdk/components/camera"
 	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/resource"
-	"go.viam.com/rdk/rimage"
 	"go.viam.com/rdk/services/vision"
 	vis "go.viam.com/rdk/vision"
 	"go.viam.com/rdk/vision/classification"
@@ -45,12 +44,13 @@ func init() {
 
 // Config contains names for necessary resources (camera and vision service)
 type Config struct {
-	CameraName     string             `json:"camera_name"`
-	DetectorName   string             `json:"detector_name"`
-	ChosenLabels   map[string]float64 `json:"chosen_labels"`
-	MaxFrequency   float64            `json:"max_frequency_hz"`
-	Threshold      float64            `json:"threshold"`
-	ExcludedRegion []int              `json:"excluded_region"`
+	CameraName      string             `json:"camera_name"`
+	DetectorName    string             `json:"detector_name"`
+	ChosenLabels    map[string]float64 `json:"chosen_labels"`
+	MaxFrequency    float64            `json:"max_frequency_hz"`
+	Threshold       float64            `json:"threshold"`
+	ExcludedRegion  []int              `json:"excluded_region"`
+	TriggerOnMotion bool               `json:"trigger_on_motion"`
 }
 
 // Validate validates the config and returns implicit dependencies,
@@ -89,6 +89,7 @@ type runConfig struct {
 	minConfidence float64
 	threshold     float64
 	excludedZone  *image.Rectangle
+	motionTrigger bool
 }
 
 // newPrefilter creates the vision service classifier
@@ -150,6 +151,7 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 			return errors.Wrapf(err, "unable to get camera %v for ocean prefilter", prefilterConfig.DetectorName)
 		}
 	}
+	rc.motionTrigger = prefilterConfig.TriggerOnMotion
 	rc.chosenLabels = prefilterConfig.ChosenLabels // if you configred an optional detector, this determines the labels and confidences to use
 	rc.threshold = prefilterConfig.Threshold
 	if len(prefilterConfig.ExcludedRegion) != 0 {
@@ -209,7 +211,10 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 			//isTriggered, err := mlFilter(ctx, img, rc)
 			isTriggered, newHists, err := histogramChangeFilter(oldHists, img, rc)
 			if err != nil {
-				rc.logger.Warnw("encountered error and resetting histograms", "error", err.Error())
+				rc.logger.Infow("resetting histograms", "error", err.Error())
+				if rc.motionTrigger {
+					isTriggered = true
+				}
 			}
 			if isTriggered {
 				triggerCount = triggerCountdown
@@ -221,10 +226,6 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 				trigger.Store(false)
 			}
 			oldHists = newHists
-			if trigger.Load() {
-				fmt.Printf("trigger %v is: %v\n", count, trigger.Load())
-				rimage.SaveImage(img, fmt.Sprintf("/tmp/tests/%v.jpeg", count))
-			}
 			release()
 
 			took := time.Since(start)

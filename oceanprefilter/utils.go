@@ -6,7 +6,6 @@ import (
 	"image/draw"
 
 	"github.com/pkg/errors"
-	"go.viam.com/rdk/rimage"
 	"gocv.io/x/gocv"
 )
 
@@ -86,7 +85,6 @@ func splitUpImage(img image.Image, exZone *image.Rectangle, yValue, nh, nv int) 
 	croppedRect := image.Rect(bounds.Min.X, yValue, bounds.Max.X, bounds.Max.Y)
 	croppedImg := image.NewRGBA(croppedRect)
 	draw.Draw(croppedImg, croppedImg.Bounds(), img, croppedRect.Min, draw.Src)
-	rimage.SaveImage(croppedImg, "/tmp/croppedImg.jpg")
 
 	// Split the cropped image into n horizontal bands
 	bandHeight := croppedImg.Bounds().Dy() / nh
@@ -102,7 +100,6 @@ func splitUpImage(img image.Image, exZone *image.Rectangle, yValue, nh, nv int) 
 			bandImg := image.NewRGBA(bandRect)
 			draw.Draw(bandImg, bandImg.Bounds(), croppedImg, image.Point{bandRect.Min.X, bandRect.Min.Y + yValue}, draw.Src)
 			images = append(images, bandImg)
-			rimage.SaveImage(bandImg, fmt.Sprintf("/tmp/%v_%v.jpg", i, j))
 		}
 	}
 	return images, nil

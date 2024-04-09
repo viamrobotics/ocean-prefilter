@@ -7,7 +7,6 @@ import (
 	"math"
 
 	"github.com/pkg/errors"
-	"go.viam.com/rdk/rimage"
 )
 
 const NVSplit = 4
@@ -64,7 +63,6 @@ func histogramChangeFilter(
 		return false, nil, errors.New("function to find the horizon line returned less than 2 points")
 	}
 	cropY := int(math.Max(float64(linePoints[0].Y), float64(linePoints[1].Y)))
-	rimage.SaveImage(newImg, "/tmp/after_horizon.jpg")
 	imgs, err := splitUpImage(newImg, rc.excludedZone, cropY, NHSplit, NVSplit)
 	if err != nil {
 		return false, nil, err
