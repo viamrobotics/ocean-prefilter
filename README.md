@@ -2,7 +2,7 @@
 
 Viam provides an `ocean-prefilter` model of the [vision service](https://docs.viam.com//services/vision) to find objects of interest in large bodies of water.
 
-It works by finding the horizon, cropping the image to only see the water, and then divind the water into patches. These patches are turned into histograms, which are interpreted as probability distributions for their color/intensity values. A Kolmogorov-Smirnov test is then done on the before and after image, to determine if they are "close enough" to being the same scene, or if something new has entered the scene. 
+It works by finding the horizon, cropping the image to only see the water, and then divides the water into patches. These patches are turned into histograms, which are interpreted as probability distributions for their color/intensity values. A Kolmogorov-Smirnov test is then done on the before and after image, to determine if they are "close enough" to being the same scene, or if something new has entered the scene. 
 
 Strong motion of the waves or bobbing up-and-down of the boat can trigger the pre-filter.
 
@@ -35,7 +35,7 @@ wget -O opencv.zip https://github.com/opencv/opencv/archive/4.9.0.zip
 unzip opencv.zip
 mkdir -p build && cd build
 
-cmake -DBUILD_SHARED_LIBS=OFF -DOPENCV_GENERATE_PKGCONFIG=ON ../opencv-4.9.0
+cmake -DBUILD_SHARED_LIBS=OFF -DOPENCV_EXTRA_MODULES_PATH=../opencv_contrib-4.x/modules -DOPENCV_GENERATE_PKGCONFIG=ON ../opencv-4.9.0
 sudo make
 sudo make install
 
