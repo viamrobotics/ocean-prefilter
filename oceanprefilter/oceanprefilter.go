@@ -14,6 +14,7 @@ import (
 	"go.viam.com/rdk/components/camera"
 	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/resource"
+	"go.viam.com/rdk/rimage"
 	"go.viam.com/rdk/services/vision"
 	vis "go.viam.com/rdk/vision"
 	"go.viam.com/rdk/vision/classification"
@@ -27,6 +28,7 @@ const (
 	// DefaulMaxFrequency is how often the vision service will poll the camera for a new image
 	DefaultMaxFrequency = 10.0
 	triggerClassName    = "TRIGGER"
+	triggerCountdown    = 4
 )
 
 var (
@@ -47,6 +49,7 @@ type Config struct {
 	DetectorName string             `json:"detector_name"`
 	ChosenLabels map[string]float64 `json:"chosen_labels"`
 	MaxFrequency float64            `json:"max_frequency_hz"`
+	Threshold    float64            `json:"threshold"`
 }
 
 // Validate validates the config and returns implicit dependencies,
@@ -82,6 +85,8 @@ type runConfig struct {
 	chosenLabels  map[string]float64
 	frequency     float64
 	minConfidence float64
+	threshold     float64
+	excludedZone  image.Rectangle
 }
 
 // newPrefilter creates the vision service classifier
@@ -143,6 +148,7 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 		}
 	}
 	rc.chosenLabels = prefilterConfig.ChosenLabels // if you configred an optional detector, this determines the labels and confidences to use
+	rc.threshold = prefilterConfig.Threshold
 
 	// now start the background thread
 	pf.activeBackgroundWorkers.Add(1)
@@ -165,6 +171,9 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 // run sets up a camera stream and then takes new pictures and processes them for anomalies
 // at the desired frequency.
 func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
+	count := 0
+	triggerCount := 0
+	rc.excludedZone = image.Rect(234, 373, 619, 480)
 	if rc.cam == nil {
 		return errors.Errorf("underlying camera %q is nil, cannot start background stream", rc.camName)
 	}
@@ -173,7 +182,11 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 		return err
 	}
 	defer stream.Close(ctx)
+	// create the oldHist object to store the old histograms
+	oldHists := []Histogram{}
 	for {
+		count++
+		fmt.Printf("count: %v\n", count)
 		select {
 		case <-ctx.Done():
 			return nil
@@ -182,18 +195,28 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 			img, release, err := stream.Next(ctx)
 			if err != nil {
 				trigger.Store(false)
-				release()
 				return err
 			}
-			horizonLine, err := findHorizonLine(ctx, img)
-			fmt.Printf("horizon line is : %v\n", horizonLine)
-			isTriggered, err := mlFilter(ctx, img, rc) // bogus stand in function for now
+			if dImg, ok := img.(*rimage.LazyEncodedImage); ok {
+				img = dImg.DecodedImage()
+			}
+			//isTriggered, err := mlFilter(ctx, img, rc)
+			isTriggered, newHists, err := histogramChangeFilter(oldHists, img, rc)
+			if err != nil {
+				fmt.Printf("error: %v\n", err.Error())
+			}
 			if isTriggered {
+				triggerCount = triggerCountdown
 				trigger.Store(true)
+			} else if triggerCount > 0 { // save some frames after the trigger
+				trigger.Store(true)
+				triggerCount--
 			} else {
 				trigger.Store(false)
 			}
+			oldHists = newHists
 			release()
+			fmt.Printf("trigger is: %v\n", trigger.Load())
 
 			took := time.Since(start)
 			waitFor := time.Duration((1/rc.frequency)*float64(time.Second)) - took // only poll according to set freq

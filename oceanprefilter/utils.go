@@ -5,6 +5,8 @@ import (
 	"image"
 	"image/draw"
 
+	"github.com/pkg/errors"
+	"go.viam.com/rdk/rimage"
 	"gocv.io/x/gocv"
 )
 
@@ -55,10 +57,16 @@ func toGray(pic image.Image) *image.Gray {
 }
 
 // crop the image from yValue -> img.Bounds().Max.Y
-// and then split the cropped image into n horizontal bands of equal height
-func splitUpImage(img image.Image, yValue, n int) ([]image.Image, error) {
-	if n <= 0 {
-		return nil, fmt.Errorf("n must be greater than 0")
+// and then split the cropped image into nh horizontal and nv vertical bands of equal height and width
+func splitUpImage(img image.Image, exZone image.Rectangle, yValue, nh, nv int) ([]image.Image, error) {
+	if img == nil {
+		return nil, errors.New("input image to split up is nil")
+	}
+	if nv <= 0 {
+		return nil, fmt.Errorf("number of vertical lines must be greater than 0")
+	}
+	if nh <= 0 {
+		return nil, fmt.Errorf("number of horizontal lines must be greater than 0")
 	}
 
 	// Crop the image from yValue to img.Bounds().Max.Y
@@ -67,20 +75,30 @@ func splitUpImage(img image.Image, yValue, n int) ([]image.Image, error) {
 	if croppedHeight <= 0 {
 		return nil, fmt.Errorf("yValue must be within the image bounds")
 	}
+	// edit exluded zone to take the crop into account
+	exZone.Min.Y = exZone.Min.Y - yValue
+	exZone.Max.Y = exZone.Max.Y - yValue
 	croppedRect := image.Rect(bounds.Min.X, yValue, bounds.Max.X, bounds.Max.Y)
 	croppedImg := image.NewRGBA(croppedRect)
-	draw.Draw(croppedImg, croppedImg.Bounds(), img, image.Point{bounds.Min.X, yValue}, draw.Src)
+	draw.Draw(croppedImg, croppedImg.Bounds(), img, croppedRect.Min, draw.Src)
+	rimage.SaveImage(croppedImg, "/tmp/croppedImg.jpg")
 
 	// Split the cropped image into n horizontal bands
-	imageWidth := croppedImg.Bounds().Dx()
-	bandHeight := croppedImg.Bounds().Dy() / n
-	images := make([]image.Image, n)
-	for i := 0; i < n; i++ {
-		bandRect := image.Rect(0, i*bandHeight, imageWidth, (i+1)*bandHeight)
-		bandImg := image.NewRGBA(bandRect)
-		draw.Draw(bandImg, bandImg.Bounds(), croppedImg, bandRect.Min, draw.Src)
-		images[i] = bandImg
+	bandHeight := croppedImg.Bounds().Dy() / nh
+	bandWidth := croppedImg.Bounds().Dx() / nv
+	images := make([]image.Image, 0, nv*nh)
+	for i := 0; i < nh; i++ {
+		for j := 0; j < nv; j++ {
+			bandRect := image.Rect(j*bandWidth, i*bandHeight, (j+1)*bandWidth, (i+1)*bandHeight)
+			// if rect in excluded zone, skip it
+			if bandRect.Overlaps(exZone) {
+				continue
+			}
+			bandImg := image.NewRGBA(bandRect)
+			draw.Draw(bandImg, bandImg.Bounds(), croppedImg, image.Point{bandRect.Min.X, bandRect.Min.Y + yValue}, draw.Src)
+			images = append(images, bandImg)
+			rimage.SaveImage(bandImg, fmt.Sprintf("/tmp/%v_%v.jpg", i, j))
+		}
 	}
-
 	return images, nil
 }
