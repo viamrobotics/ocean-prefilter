@@ -26,6 +26,7 @@ const (
 	ModelName = "ocean-prefilter"
 	// DefaulMaxFrequency is how often the vision service will poll the camera for a new image
 	DefaultMaxFrequency = 10.0
+	DefaultThreshold    = 0.25
 	triggerClassName    = "TRIGGER"
 	triggerCountdown    = 4
 )
@@ -131,12 +132,18 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 	rc.logger = pf.logger
 	// now load the relevant info into the runConfig
 	if prefilterConfig.MaxFrequency < 0 {
-		return errors.New("frequency(Hz) must be a non-negative number")
+		return errors.New("max_frequency_hz must be a non-negative number")
 	}
-	if prefilterConfig.MaxFrequency == 0 {
+	rc.frequency = prefilterConfig.MaxFrequency
+	if rc.frequency == 0 {
 		rc.frequency = DefaultMaxFrequency
-	} else {
-		rc.frequency = prefilterConfig.MaxFrequency
+	}
+	if prefilterConfig.Threshold > 1.0 || prefilterConfig.Threshold < 0 {
+		return errors.New("threshold must be a number between 0 and 1")
+	}
+	rc.threshold = prefilterConfig.Threshold
+	if rc.threshold == 0 {
+		rc.threshold = DefaultThreshold
 	}
 
 	rc.camName = prefilterConfig.CameraName
@@ -153,7 +160,6 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 	}
 	rc.motionTrigger = prefilterConfig.TriggerOnMotion
 	rc.chosenLabels = prefilterConfig.ChosenLabels // if you configred an optional detector, this determines the labels and confidences to use
-	rc.threshold = prefilterConfig.Threshold
 	if len(prefilterConfig.ExcludedRegion) != 0 {
 		if len(prefilterConfig.ExcludedRegion) != 4 {
 			return errors.Errorf("excluded_region must have four numbers that represent upper left and lower right corner of the excluded region in pixels. Instead got a list of %v elements", len(prefilterConfig.ExcludedRegion))
