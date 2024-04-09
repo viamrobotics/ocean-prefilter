@@ -27,11 +27,12 @@ const (
 	// DefaulMaxFrequency is how often the vision service will poll the camera for a new image
 	DefaultMaxFrequency = 10.0
 	triggerClassName    = "TRIGGER"
+	triggerCountdown    = 4
 )
 
 var (
 	// Model is the resource
-	Model            = resource.NewModel("viam", "vision", ModelName)
+	Model            = resource.NewModel("viam-labs", "vision", ModelName)
 	errUnimplemented = errors.New("unimplemented")
 )
 
@@ -43,10 +44,13 @@ func init() {
 
 // Config contains names for necessary resources (camera and vision service)
 type Config struct {
-	CameraName   string             `json:"camera_name"`
-	DetectorName string             `json:"detector_name"`
-	ChosenLabels map[string]float64 `json:"chosen_labels"`
-	MaxFrequency float64            `json:"max_frequency_hz"`
+	CameraName      string             `json:"camera_name"`
+	DetectorName    string             `json:"detector_name"`
+	ChosenLabels    map[string]float64 `json:"chosen_labels"`
+	MaxFrequency    float64            `json:"max_frequency_hz"`
+	Threshold       float64            `json:"threshold"`
+	ExcludedRegion  []int              `json:"excluded_region"`
+	TriggerOnMotion bool               `json:"trigger_on_motion"`
 }
 
 // Validate validates the config and returns implicit dependencies,
@@ -76,19 +80,25 @@ type prefilter struct {
 
 // runConfig are the settings that will be fed to the background thread that will constantly be evaluating images for events
 type runConfig struct {
+	logger        logging.Logger
 	cam           camera.Camera
 	camName       string
 	detector      vision.Service
 	chosenLabels  map[string]float64
 	frequency     float64
 	minConfidence float64
+	threshold     float64
+	excludedZone  *image.Rectangle
+	motionTrigger bool
 }
 
 // newPrefilter creates the vision service classifier
 func newPrefilter(ctx context.Context, deps resource.Dependencies, conf resource.Config, logger logging.Logger) (vision.Service, error) {
+	var triggerFlag atomic.Bool
 	pf := &prefilter{
-		Named:  conf.ResourceName().AsNamed(),
-		logger: logger,
+		Named:       conf.ResourceName().AsNamed(),
+		logger:      logger,
+		triggerFlag: &triggerFlag,
 	}
 	pf.triggerFlag.Store(false)
 
@@ -118,6 +128,7 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 
 	// the run config will store the relevant variables from the prefilterConfig for running
 	rc := runConfig{}
+	rc.logger = pf.logger
 	// now load the relevant info into the runConfig
 	if prefilterConfig.MaxFrequency < 0 {
 		return errors.New("frequency(Hz) must be a non-negative number")
@@ -140,7 +151,17 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 			return errors.Wrapf(err, "unable to get camera %v for ocean prefilter", prefilterConfig.DetectorName)
 		}
 	}
+	rc.motionTrigger = prefilterConfig.TriggerOnMotion
 	rc.chosenLabels = prefilterConfig.ChosenLabels // if you configred an optional detector, this determines the labels and confidences to use
+	rc.threshold = prefilterConfig.Threshold
+	if len(prefilterConfig.ExcludedRegion) != 0 {
+		if len(prefilterConfig.ExcludedRegion) != 4 {
+			return errors.Errorf("excluded_region must have four numbers that represent upper left and lower right corner of the excluded region in pixels. Instead got a list of %v elements", len(prefilterConfig.ExcludedRegion))
+		}
+		er := prefilterConfig.ExcludedRegion
+		theZone := image.Rectangle{image.Point{er[0], er[1]}, image.Point{er[2], er[3]}}
+		rc.excludedZone = &theZone
+	}
 
 	// now start the background thread
 	pf.activeBackgroundWorkers.Add(1)
@@ -163,6 +184,8 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 // run sets up a camera stream and then takes new pictures and processes them for anomalies
 // at the desired frequency.
 func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
+	count := 0
+	triggerCount := 0
 	if rc.cam == nil {
 		return errors.Errorf("underlying camera %q is nil, cannot start background stream", rc.camName)
 	}
@@ -171,7 +194,10 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 		return err
 	}
 	defer stream.Close(ctx)
+	// create the oldHist object to store the old histograms
+	oldHists := []Histogram{}
 	for {
+		count++
 		select {
 		case <-ctx.Done():
 			return nil
@@ -180,15 +206,26 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 			img, release, err := stream.Next(ctx)
 			if err != nil {
 				trigger.Store(false)
-				release()
 				return err
 			}
-			isTriggered, err := theFilter(img) // bogus stand in function for now
+			//isTriggered, err := mlFilter(ctx, img, rc)
+			isTriggered, newHists, err := histogramChangeFilter(oldHists, img, rc)
+			if err != nil {
+				rc.logger.Infow("resetting histograms", "error", err.Error())
+				if rc.motionTrigger {
+					isTriggered = true
+				}
+			}
 			if isTriggered {
+				triggerCount = triggerCountdown
 				trigger.Store(true)
+			} else if triggerCount > 0 { // save some frames after the trigger
+				trigger.Store(true)
+				triggerCount--
 			} else {
 				trigger.Store(false)
 			}
+			oldHists = newHists
 			release()
 
 			took := time.Since(start)
