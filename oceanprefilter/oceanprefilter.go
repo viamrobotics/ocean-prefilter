@@ -190,7 +190,6 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 // run sets up a camera stream and then takes new pictures and processes them for anomalies
 // at the desired frequency.
 func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
-	count := 0
 	triggerCount := 0
 	if rc.cam == nil {
 		return errors.Errorf("underlying camera %q is nil, cannot start background stream", rc.camName)
@@ -203,7 +202,6 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 	// create the oldHist object to store the old histograms
 	oldHists := []Histogram{}
 	for {
-		count++
 		select {
 		case <-ctx.Done():
 			return nil
