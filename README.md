@@ -6,6 +6,8 @@ It works by finding the horizon, cropping the image to only see the water, and t
 
 Strong motion of the waves or bobbing up-and-down of the boat can trigger the pre-filter.
 
+This vision service only returns one label classification called _TRIGGER_ with a confidence of 1.0.
+
 ## Config
 
 You can download it from the viam Registry at [ocean-prefilter](https://app.viam.com/module/viam-labs/ocean-prefilter)
@@ -24,20 +26,20 @@ You can download it from the viam Registry at [ocean-prefilter](https://app.viam
     }
 ```
 
-- `camera_name`: this is a necessary parameter that links the prefilter to a specific camera. It calls the camera stream in a loop in the background in order to always be monitoring the scene for triggers. As such, calls to `get_classifications` simply returns what the result from `get_classifications_from_camera` would return, as the vision service is strongly linked to this camera.
-- `threshold` : default is 0.25. this is a number between 0 and 1. It determines how sensitive the trigger for the pre-filter is. The prefilter will pick up on both strong motion of the boat/waves, as well as objects like other boats, buoys, and anything that looks different from the standard pattern of the water.
-- `max_frequency_hz`: default is 10. Determines how often the vision service should poll the background camera stream for changes in the scene. It is not recommended to set this lower than 1, unless the scene is changing very slowly. 
+- _`camera_name`_: this is a necessary parameter that links the prefilter to a specific camera. It calls the camera stream in a loop in the background in order to always be monitoring the scene for triggers. As such, calls to `get_classifications` simply returns what the result from `get_classifications_from_camera` would return, as the vision service is strongly linked to this camera.
+- _`threshold`_ : default is 0.25. this is a number between 0 and 1. It determines how sensitive the trigger for the pre-filter is. The prefilter will pick up on both strong motion of the boat/waves, as well as objects like other boats, buoys, and anything that looks different from the standard pattern of the water.
+- _`max_frequency_hz`_: default is 10. Determines how often the vision service should poll the background camera stream for changes in the scene. It is not recommended to set this lower than 1, unless the scene is changing very slowly. 
 
 ## statically build in Linux
 
 ```
-wget -O opencv.zip https://github.com/opencv/opencv/archive/4.9.0.zip
-unzip opencv.zip
-mkdir -p build && cd build
+# get libjpeg
+sudo apt-get install libjpeg-dev
+# get opencv
+git clone https://github.com/hybridgroup/gocv.git
+cd gocv
+sudo make install BUILD_SHARED_LIBS=OFF
 
-cmake -DBUILD_SHARED_LIBS=OFF -DOPENCV_EXTRA_MODULES_PATH=../opencv_contrib-4.x/modules -DOPENCV_GENERATE_PKGCONFIG=ON ../opencv-4.9.0
-sudo make
-sudo make install
-
+# build the module binary
 CGO_ENABLED=1 CGO_CFLAGS="-I/usr/local/include -I/usr/local/include/opencv4" CGO_LDFLAGS="-I/usr/local/include/opencv4 -L/usr/local/lib" go build -tags static -ldflags="-extldflags=-static" main.go
 ```
