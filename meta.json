@@ -9,5 +9,5 @@
       "model": "viam-labs:vision:ocean-prefilter"
     }
   ],
-  "entrypoint": "ocean-prefilter"
+  "entrypoint": "ocean-prefilter-appimage"
 }
