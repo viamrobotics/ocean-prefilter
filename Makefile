@@ -30,7 +30,7 @@ docker-build: docker-arm64 docker-amd64
 
 docker-upload: docker-upload-arm64 docker-upload-amd64
 
-docker-arm64: MAIN_TAG = ghcr.io/viamrobotics/ocean-prefilter
+docker-arm64: MAIN_TAG = ghcr.io/viam-labs/ocean-prefilter
 docker-arm64: BUILD_TAG = arm64
 docker-arm64:
 	$(BUILD_CMD)
