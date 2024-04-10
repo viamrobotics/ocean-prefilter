@@ -1,6 +1,8 @@
 FROM debian:bookworm
 
 ARG DEBIAN_FRONTEND=noninteractive
+ARG BASE_TAG=none
+ENV ARCH_TAG=$BASE_TAG
 
 RUN apt-get update
 
@@ -39,7 +41,19 @@ RUN apt-get -y --no-install-recommends install -t llvm-toolchain-bookworm-15 \
 RUN mkdir -p /root/opt/src
 
 # install Go
-RUN apt install -y golang-go 
+
+RUN if [ "$BASE_TAG" = "amd64" ]; then \
+    wget https://go.dev/dl/go1.21.9.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.21.9.linux-amd64.tar.gz; \
+    elif [ "$BASE_TAG" = "arm64" ]; then \
+    wget https://go.dev/dl/go1.21.9.linux-arm64.tar.gz && \
+    tar -C /usr/local -xzf go1.21.9.linux-arm64.tar.gz; \
+    else \
+        echo "Unsupported architecture $BASE_TAG"; \
+        exit 1; \
+    fi
+
+RUN export PATH=/usr/local/go/bin:$PATH
 
 # necessary library for jpeg
 RUN apt install -y libturbojpeg-dev

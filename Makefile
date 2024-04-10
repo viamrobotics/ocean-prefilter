@@ -3,14 +3,23 @@ ocean-prefilter: main.go
 	go build -o ocean-prefilter main.go
 
 TAG_VERSION?=latest
+
+ifeq (${ARCH_TAG},arm64)
+	    ARCH_NAME = aarch64
+	else ifeq (${ARCH_TAG},amd64)
+	    ARCH_NAME = x86_64
+	else
+	    ARCH_NAME = none
+	endif
+
 ocean-prefilter-appimage: export TAG_NAME = ${TAG_VERSION}
 ocean-prefilter-appimage: ocean-prefilter
 	cd packaging/appimages && \
 	mkdir -p deploy && \
 	rm -f deploy/ocean-prefilter* && \
-	appimage-builder --recipe ocean-prefilter-aarch64.yml
-	cp ./packaging/appimages/ocean-prefilter-*-aarch64.AppImage  ./packaging/appimages/deploy/
-	cp ./packaging/appimages/deploy/ocean-prefilter-${TAG_VERSION}-aarch64.AppImage ocean-prefilter-appimage
+	appimage-builder --recipe ocean-prefilter-${ARCH_NAME}.yml
+	cp ./packaging/appimages/ocean-prefilter-*-${ARCH_NAME}.AppImage  ./packaging/appimages/deploy/
+	cp ./packaging/appimages/deploy/ocean-prefilter-${TAG_VERSION}-${ARCH_NAME}.AppImage ocean-prefilter-appimage
 	chmod a+x ocean-prefilter-appimage
 
 module: ocean-prefilter-appimage
