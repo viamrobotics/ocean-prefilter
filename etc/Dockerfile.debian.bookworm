@@ -1,0 +1,113 @@
+FROM debian:bookworm
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update
+
+RUN apt-get -y dist-upgrade
+
+RUN apt-get -y --no-install-recommends install \
+    build-essential \
+    ca-certificates \
+    cmake \
+    curl \
+    doxygen \
+    g++ \
+    gdb \
+    gnupg \
+    gpg \
+    less \
+    git \
+    sudo \
+    wget \
+    software-properties-common \
+    pkg-config \
+    libgtk-3-dev \
+    libssl-dev \
+    libudev-dev 
+
+
+RUN bash -c 'wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|apt-key add -'
+RUN apt-add-repository -y 'deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-15 main'
+RUN apt-add-repository -y 'deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-15 main'
+RUN apt-get update
+
+RUN apt-get -y --no-install-recommends install -t llvm-toolchain-bookworm-15 \
+    clang-15 \
+    clang-tidy-15
+
+RUN mkdir -p /root/opt/src
+
+# install Go
+RUN apt install -y golang-go 
+
+# necessary library for jpeg
+RUN apt install -y libturbojpeg-dev
+
+# install python tools needed
+RUN apt install -y \
+    binutils \
+    coreutils \
+    desktop-file-utils \
+    fakeroot \
+    fuse \
+    libgdk-pixbuf2.0-dev \
+    patchelf \
+    python3-pip python3-setuptools \
+    squashfs-tools \
+    strace \
+    vim \
+    util-linux zsync
+
+RUN pip3 install -U pip setuptools numpy urllib3==1.26.12 requests==2.26.0 --break-system-packages
+
+# install opencv from source
+RUN apt-get -y install unzip wget build-essential cmake curl git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev libtbbmalloc2 libtbb-dev libjpeg-dev libpng-dev libtiff-dev
+
+# necessary gstreamer stuff
+RUN apt-get -y install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-tools gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 gstreamer1.0-qt5 gstreamer1.0-pulseaudio
+
+RUN apt-get -y install --no-install-recommends \
+      tzdata git build-essential cmake pkg-config wget unzip libgtk2.0-dev \
+      curl ca-certificates libcurl4-openssl-dev libssl-dev \
+      libavcodec-dev libavformat-dev libswscale-dev libtbb-dev \
+      libpng-dev libtiff-dev libdc1394-dev nasm
+
+RUN cd /root/opt/src && \
+    curl -Lo opencv.zip https://github.com/opencv/opencv/archive/refs/tags/4.9.0.zip && \
+    unzip -q opencv.zip && \
+    curl -Lo opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/refs/tags/4.9.0.zip && \
+    unzip -q opencv_contrib.zip && \
+    rm opencv.zip opencv_contrib.zip && \
+    cd opencv-4.9.0 && \
+    mkdir build && \
+    cd build && \
+      cmake -D CMAKE_BUILD_TYPE=RELEASE \
+      -D WITH_IPP=OFF \
+      -D WITH_OPENGL=OFF \
+      -D WITH_QT=OFF \
+      -D CMAKE_INSTALL_PREFIX=/usr/local \
+      -D OPENCV_EXTRA_MODULES_PATH=../../opencv_contrib-4.9.0/modules \
+      -D OPENCV_ENABLE_NONFREE=ON \
+      -D WITH_JASPER=OFF \
+      -D WITH_TBB=ON \
+      -D BUILD_JPEG=ON \
+      -D WITH_SIMD=ON \
+      -D ENABLE_LIBJPEG_TURBO_SIMD=ON \
+      -D BUILD_DOCS=OFF \
+      -D BUILD_EXAMPLES=OFF \
+      -D BUILD_TESTS=OFF \
+      -D BUILD_PERF_TESTS=ON \
+      -D BUILD_opencv_java=NO \
+      -D BUILD_opencv_python=NO \
+      -D BUILD_opencv_python2=NO \
+      -D BUILD_opencv_python3=NO \
+      -D OPENCV_GENERATE_PKGCONFIG=ON .. && \
+    make -j 4 && \
+    make preinstall && \
+    make install -j 4 && \
+    rm -rf /root/opt/src/opencv
+
+# install appimage-builder
+RUN pip3 install --break-system-packages git+https://github.com/AppImageCrafters/appimage-builder.git@61c8ddde9ef44b85d7444bbe79d80b44a6a5576d
+

@@ -212,6 +212,7 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 				trigger.Store(false)
 				return err
 			}
+			// this function is where the decision happens
 			//isTriggered, err := mlFilter(ctx, img, rc)
 			isTriggered, newHists, err := histogramChangeFilter(oldHists, img, rc)
 			if err != nil {
@@ -223,7 +224,7 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 			if isTriggered {
 				triggerCount = triggerCountdown
 				trigger.Store(true)
-			} else if triggerCount > 0 { // save some frames after the trigger
+			} else if triggerCount > 0 {
 				trigger.Store(true)
 				triggerCount--
 			} else {
@@ -243,15 +244,6 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 			}
 		}
 	}
-}
-
-// theFilter is a stupid fillter function just for testing purposes
-func theFilter(img image.Image) (bool, error) {
-	// if the minute is even, return true
-	currentTime := time.Now()
-	minute := currentTime.Minute()
-	isEven := minute%2 == 0
-	return isEven, nil
 }
 
 func (pf *prefilter) DetectionsFromCamera(
