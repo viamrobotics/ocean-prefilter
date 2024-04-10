@@ -30,15 +30,21 @@ You can download it from the viam Registry at [ocean-prefilter](https://app.viam
 - _`threshold`_ : default is 0.25. this is a number between 0 and 1. It determines how sensitive the trigger for the pre-filter is. The prefilter will pick up on both strong motion of the boat/waves, as well as objects like other boats, buoys, and anything that looks different from the standard pattern of the water.
 - _`max_frequency_hz`_: default is 10. Determines how often the vision service should poll the background camera stream for changes in the scene. It is not recommended to set this lower than 1, unless the scene is changing very slowly. 
 
-## statically build in Linux
+## Download dependencies for the module
 
+log into your raspberry pi and install the following necessary libraries 
 ```
-# get libjpeg
 sudo apt-get install libjpeg-dev
-# get opencv
+
 git clone https://github.com/hybridgroup/gocv.git
 cd gocv
-sudo make install BUILD_SHARED_LIBS=OFF
+sudo make install
+```
+
+## statically build in Linux
+
+
+```
 
 # build the module binary
 CGO_ENABLED=1 CGO_CFLAGS="-I/usr/local/include -I/usr/local/include/opencv4" CGO_LDFLAGS="-I/usr/local/include/opencv4 -L/usr/local/lib" go build -tags static -ldflags="-extldflags=-static" main.go
