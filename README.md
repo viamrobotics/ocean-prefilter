@@ -21,16 +21,18 @@ You can download it from the viam Registry at [ocean-prefilter](https://app.viam
       "attributes": {
         "camera_name": "my_cam",
         "threshold": 0.25,
-        "max_frequency_hz": 5
+        "max_frequency_hz": 5,
+        "excluded_region": [xmin, ymin, xmax, ymax]
       }
     }
 ```
 
-- _`camera_name`_: this is a necessary parameter that links the prefilter to a specific camera. It calls the camera stream in a loop in the background in order to always be monitoring the scene for triggers. As such, calls to `get_classifications` simply returns what the result from `get_classifications_from_camera` would return, as the vision service is strongly linked to this camera.
-- _`threshold`_ : default is 0.25. this is a number between 0 and 1. It determines how sensitive the trigger for the pre-filter is. The prefilter will pick up on both strong motion of the boat/waves, as well as objects like other boats, buoys, and anything that looks different from the standard pattern of the water.
-- _`max_frequency_hz`_: default is 10. Determines how often the vision service should poll the background camera stream for changes in the scene. It is not recommended to set this lower than 1, unless the scene is changing very slowly. 
+- **`camera_name`**: this is a necessary parameter that links the prefilter to a specific camera. It calls the camera stream in a loop in the background in order to always be monitoring the scene for triggers. As such, calls to `get_classifications` simply returns what the result from `get_classifications_from_camera` would return, as the vision service is strongly linked to this camera.
+- **`threshold`** : default is 0.25. this is a number between 0 and 1. It determines how sensitive the trigger for the pre-filter is. The prefilter will pick up on both strong motion of the boat/waves, as well as objects like other boats, buoys, and anything that looks different from the standard pattern of the water.
+- **`max_frequency_hz`**: default is 10. Determines how often the vision service should poll the background camera stream for changes in the scene. It is not recommended to set this lower than 1, unless the scene is changing very slowly. 
+- **`excluded_region`** (optional): if your camera is looking at the deck of the boat, or the bow, or whatever and you want to exclude things that might be in that region. Since the camera is affixed to the boat, the parts of the boat you want to exclude should always be in the same part of the frame, so you can find their coordinates in the image and exclude them.
 
-## Download dependencies for the module
+## Compiling the module yourself
 
 openCV is a requirement for this module, if you want to compile this module yourself
 log into your raspberry pi and install the following necessary libraries 
