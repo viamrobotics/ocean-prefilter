@@ -32,20 +32,16 @@ You can download it from the viam Registry at [ocean-prefilter](https://app.viam
 
 ## Download dependencies for the module
 
+openCV is a requirement for this module, if you want to compile this module yourself
 log into your raspberry pi and install the following necessary libraries 
 ```
 sudo apt-get install libjpeg-dev
 
 git clone https://github.com/hybridgroup/gocv.git
 cd gocv
-sudo make install
+sudo make install_raspi # or just sudo make install
+
+git clone https://github.com/viam-labs/ocean-prefilter
+make ocean-prefilter
 ```
 
-## statically build in Linux
-
-
-```
-
-# build the module binary
-CGO_ENABLED=1 CGO_CFLAGS="-I/usr/local/include -I/usr/local/include/opencv4" CGO_LDFLAGS="-I/usr/local/include/opencv4 -L/usr/local/lib" go build -tags static -ldflags="-extldflags=-static" main.go
-```
