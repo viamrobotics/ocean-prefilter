@@ -11,7 +11,7 @@ on:
 jobs:
   publish:
     name: Upload module for linux/arm64
-    runs-on: [buildjet-2vcpu-ubuntu-2204-arm]
+    runs-on: [ubuntu-latest]
     container:
       image: ghcr.io/viam-labs/ocean-prefilter:arm64
       options: --platform linux/arm64
