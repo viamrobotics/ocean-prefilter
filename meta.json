@@ -1,7 +1,7 @@
 {
   "module_id": "viam-labs:ocean-prefilter",
   "visibility": "public",
-  "url": "https://github.com/viam-labs/ocean-prefilter",
+  "url": "https://github.com/viamrobotics/ocean-prefilter",
   "description": "A module of the Viam vision service that implements a classifier used for filtering on objects in the ocean ",
   "models": [
     {

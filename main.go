@@ -10,7 +10,7 @@ import (
 	"go.viam.com/rdk/module"
 	"go.viam.com/utils"
 
-	"github.com/viam-labs/ocean-prefilter/oceanprefilter"
+	"github.com/viamrobotics/ocean-prefilter/oceanprefilter"
 )
 
 func main() {
