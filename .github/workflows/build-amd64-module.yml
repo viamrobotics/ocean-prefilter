@@ -11,7 +11,7 @@ on:
 jobs:
   publish:
     name: Upload module for linux/amd64
-    runs-on: [buildjet-8vcpu-ubuntu-2204-amd]
+    runs-on: [ubuntu-latest]
     container:
       image: ghcr.io/viam-labs/ocean-prefilter:amd64
       options: --platform linux/amd64
