@@ -22,7 +22,7 @@ ocean-prefilter-appimage: ocean-prefilter
 	cp ./packaging/appimages/deploy/ocean-prefilter-${TAG_VERSION}-${ARCH_NAME}.AppImage ocean-prefilter-appimage
 	chmod a+x ocean-prefilter-appimage
 
-module: ocean-prefilter-appimage
+module.tar.gz: ocean-prefilter-appimage
 	tar czf module.tar.gz ocean-prefilter-appimage
 
 clean:
