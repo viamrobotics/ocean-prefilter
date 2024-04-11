@@ -1,4 +1,4 @@
-module github.com/viam-labs/ocean-prefilter
+module github.com/viamrobotics/ocean-prefilter
 
 go 1.21.7
 

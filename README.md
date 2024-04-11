@@ -10,7 +10,7 @@ This vision service only returns one label classification called _TRIGGER_ with 
 
 ## Config
 
-You can download it from the viam Registry at [ocean-prefilter](https://app.viam.com/module/viam-labs/ocean-prefilter)
+You can download it from the viam Registry at [ocean-prefilter](https://app.viam.com/module/viamrobotics/ocean-prefilter)
 
 ```
     {
@@ -43,7 +43,7 @@ git clone https://github.com/hybridgroup/gocv.git
 cd gocv
 sudo make install_raspi # or just sudo make install
 
-git clone https://github.com/viam-labs/ocean-prefilter
+git clone https://github.com/viamrobotics/ocean-prefilter
 make ocean-prefilter
 ```
 

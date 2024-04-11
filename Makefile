@@ -39,31 +39,31 @@ docker-build: docker-arm64 docker-amd64
 
 docker-upload: docker-upload-arm64 docker-upload-amd64
 
-docker-arm64: MAIN_TAG = ghcr.io/viam-labs/ocean-prefilter
+docker-arm64: MAIN_TAG = ghcr.io/viamrobotics/ocean-prefilter
 docker-arm64: BUILD_TAG = arm64
 docker-arm64:
 	$(BUILD_CMD)
 
-docker-amd64: MAIN_TAG = ghcr.io/viam-labs/ocean-prefilter
+docker-amd64: MAIN_TAG = ghcr.io/viamrobotics/ocean-prefilter
 docker-amd64: BUILD_TAG = amd64
 docker-amd64:
 	$(BUILD_CMD)
 
 docker-upload-arm64:
-	docker push 'ghcr.io/viam-labs/ocean-prefilter:arm64'
+	docker push 'ghcr.io/viamrobotics/ocean-prefilter:arm64'
 
 docker-upload-amd64:
-	docker push 'ghcr.io/viam-labs/ocean-prefilter:amd64'
+	docker push 'ghcr.io/viamrobotics/ocean-prefilter:amd64'
 
 # CI targets that automatically push, avoid for local test-first-then-push workflows
-docker-arm64-ci: MAIN_TAG = ghcr.io/viam-labs/ocean-prefilter
+docker-arm64-ci: MAIN_TAG = ghcr.io/viamrobotics/ocean-prefilter
 docker-arm64-ci: BUILD_TAG = arm64
 docker-arm64-ci: BUILD_PUSH = --push
 docker-arm64-ci:
 	$(BUILD_CMD)
 
 # CI targets that automatically push, avoid for local test-first-then-push workflows
-docker-amd64-ci: MAIN_TAG = ghcr.io/viam-labs/ocean-prefilter
+docker-amd64-ci: MAIN_TAG = ghcr.io/viamrobotics/ocean-prefilter
 docker-amd64-ci: BUILD_TAG = amd64
 docker-amd64-ci: BUILD_PUSH = --push
 docker-amd64-ci:
