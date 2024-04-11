@@ -1,4 +1,4 @@
-name: Build amd64 module
+name: Build arm64 module
 
 concurrency: 
   group: ${{ github.workflow }}-${{ github.ref }}
