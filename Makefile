@@ -26,7 +26,7 @@ module: ocean-prefilter-appimage
 	tar czf module.tar.gz ocean-prefilter-appimage
 
 clean:
-	rm -rf ocean-prefilter ocean-prefilter-appimage packaging/appimages/deploy/ocean-prefilter*
+	rm -rf module.tar.gz ocean-prefilter ocean-prefilter-appimage packaging/appimages/deploy/ocean-prefilter*
 
 # Docker stuff
 BUILD_CMD = docker buildx build --pull $(BUILD_PUSH) --force-rm --no-cache --build-arg MAIN_TAG=$(MAIN_TAG) --build-arg BASE_TAG=$(BUILD_TAG) --platform linux/$(BUILD_TAG) -f $(BUILD_FILE) -t '$(MAIN_TAG):$(BUILD_TAG)' .
