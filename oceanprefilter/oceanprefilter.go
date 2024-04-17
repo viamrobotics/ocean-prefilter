@@ -235,7 +235,7 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 			}
 			oldHists = newHists
 			release()
-			if rc.debug {
+			if rc.debug && trigger.Load() {
 				rc.logger.Debug("TRIGGER is true")
 			}
 
