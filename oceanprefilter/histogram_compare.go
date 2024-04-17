@@ -63,6 +63,9 @@ func histogramChangeFilter(
 		return false, nil, errors.New("function to find the horizon line returned less than 2 points")
 	}
 	cropY := int(math.Max(float64(linePoints[0].Y), float64(linePoints[1].Y)))
+	if cropY >= (newImg.Bounds().Max.Y-1) || cropY <= 1 {
+		return false, nil, errors.Errorf("could not find horizon in image. Got a horizon value of y = %v", cropY)
+	}
 	imgs, err := splitUpImage(newImg, rc.excludedZone, cropY, NHSplit, NVSplit)
 	if err != nil {
 		return false, nil, err

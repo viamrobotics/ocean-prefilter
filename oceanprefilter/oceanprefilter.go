@@ -50,6 +50,7 @@ type Config struct {
 	ChosenLabels    map[string]float64 `json:"chosen_labels"`
 	MaxFrequency    float64            `json:"max_frequency_hz"`
 	Threshold       float64            `json:"threshold"`
+	Debug           bool               `json:"debug"`
 	ExcludedRegion  []int              `json:"excluded_region"`
 	TriggerOnMotion bool               `json:"trigger_on_motion"`
 }
@@ -91,6 +92,7 @@ type runConfig struct {
 	threshold     float64
 	excludedZone  *image.Rectangle
 	motionTrigger bool
+	debug         bool
 }
 
 // newPrefilter creates the vision service classifier
@@ -130,6 +132,7 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 	// the run config will store the relevant variables from the prefilterConfig for running
 	rc := runConfig{}
 	rc.logger = pf.logger
+	rc.debug = prefilterConfig.Debug
 	// now load the relevant info into the runConfig
 	if prefilterConfig.MaxFrequency < 0 {
 		return errors.New("max_frequency_hz must be a non-negative number")
@@ -232,6 +235,9 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 			}
 			oldHists = newHists
 			release()
+			if rc.debug {
+				rc.logger.Debug("TRIGGER is true")
+			}
 
 			took := time.Since(start)
 			waitFor := time.Duration((1/rc.frequency)*float64(time.Second)) - took // only poll according to set freq
