@@ -1,41 +1,21 @@
-# ocean-prefilter
+# [`ocean-prefilter` module](https://app.viam.com/module/viam-labs/ocean-prefilter)
 
-Viam provides an `ocean-prefilter` model of the [vision service](https://docs.viam.com//services/vision) to find objects of interest in large bodies of water.
+This module implements the [`rdk:service:vision` API](https://docs.viam.com/ml/vision/#api) in an `ocean-prefilter` model for your machine to find objects of interest in large bodies of water.
 
-It works by finding the horizon, cropping the image to only see the water, and then divides the water into patches. These patches are turned into histograms, which are interpreted as probability distributions for their color/intensity values. A Kolmogorov-Smirnov test is then done on the before and after image, to determine if they are "close enough" to being the same scene, or if something new has entered the scene. 
+When you configure a machine with this module, the module:
+- Locates the horizon, crops the image to only include the water, and then divides the water into patches.
+- Turns the resulting patches into histograms, which it interprets as probability distrubutions for their color/intensity values.
+- Conducts a Kolmogorov-Smirnov test on the histograms from before and after images and determines if the scenes are consistent or if a new element has appeared.
 
 Strong motion of the waves or bobbing up-and-down of the boat can trigger the pre-filter.
+This vision service only returns one label classification called `TRIGGER` with a confidence of `1.0`.
 
-This vision service only returns one label classification called _TRIGGER_ with a confidence of 1.0.
+## Requirements
 
-## Config
+To compile this module yourself, follow these steps on your Raspberry Pi:
 
-You can download it from the viam Registry at [ocean-prefilter](https://app.viam.com/module/viamrobotics/ocean-prefilter)
-
-```
-    {
-      "name": "vision-ocean",
-      "namespace": "rdk",
-      "type": "vision",
-      "model": "viam-labs:vision:ocean-prefilter",
-      "attributes": {
-        "camera_name": "my_cam",
-        "threshold": 0.25,
-        "max_frequency_hz": 5,
-        "excluded_region": [xmin, ymin, xmax, ymax]
-      }
-    }
-```
-
-- **`camera_name`**: this is a necessary parameter that links the prefilter to a specific camera. It calls the camera stream in a loop in the background in order to always be monitoring the scene for triggers. As such, calls to `get_classifications` simply returns what the result from `get_classifications_from_camera` would return, as the vision service is strongly linked to this camera.
-- **`threshold`** : default is 0.25. this is a number between 0 and 1. It determines how sensitive the trigger for the pre-filter is. The prefilter will pick up on both strong motion of the boat/waves, as well as objects like other boats, buoys, and anything that looks different from the standard pattern of the water.
-- **`max_frequency_hz`**: default is 10. Determines how often the vision service should poll the background camera stream for changes in the scene. It is not recommended to set this lower than 1, unless the scene is changing very slowly. 
-- **`excluded_region`** (optional): if your camera is looking at the deck of the boat, or the bow, or whatever and you want to exclude things that might be in that region. Since the camera is affixed to the boat, the parts of the boat you want to exclude should always be in the same part of the frame, so you can find their coordinates in the image and exclude them.
-
-## Compiling the module yourself
-
-openCV is a requirement for this module, if you want to compile this module yourself
-log into your raspberry pi and install the following necessary libraries 
+1. Download and install [`openCV`](https://opencv.org/)
+2. Install the following necessary libraries:
 ```
 sudo apt-get install libjpeg-dev
 
@@ -47,3 +27,36 @@ git clone https://github.com/viamrobotics/ocean-prefilter
 make ocean-prefilter
 ```
 
+## Configure your `ocean-prefilter` vision service
+
+> [!NOTE]
+> Before configuring your vision service, you must [create a machine](https://docs.viam.com/fleet/machines/#add-a-new-machine).
+
+Navigate to the **CONFIGURE** tab of your machine's page in [the Viam app](https://app.viam.com).
+Click the **+** icon next to your machine part in the left-hand menu and select **Service**.
+Select the `vision` type, then search for and select the `ocean-prefilter` model.
+Click **Add module**, then enter a name or use the suggested name for your service and click **Create**.
+
+Click the **{}** (Switch to Advanced) button in the top right of the service panel to edit the service's attributes directly with JSON.
+Copy and paste the following attribute template into your vision service's attributes field:
+
+```json
+  {
+      "camera_name": "my_cam",
+      "threshold": 0.25,
+      "max_frequency_hz": 5,
+      "excluded_region": [xmin, ymin, xmax, ymax]
+  }
+```
+
+> [!NOTE]
+> For more information, see [Configure a Machine](https://docs.viam.com/build/configure/).
+
+### Attributes
+
+| Name  | Type  | Inclusion | Description | Value |
+|-------|-------|-----------|-------------| ------|
+| `camera_name` | string | **Required** | Links the pre-filter to a specific camera and continuously monitors the camera stream for changes or triggers in the background. | The name of your camera component. |
+| `threshold`  | int | Optional | Determines the sensitivity of the pre-filter trigger. This enables the pre-filter to detect significant motion such as boat or wave movements, and identifies objects like other boats, buoys, or any deviations from typical water patterns. | 0 to 1<br/> Default: `0.25` |
+| `max_frequency_hz`| int | Optional  | Determines the frequency that the vision service monitors the background camera stream for changes. If your scene changes very slowly set this below 1. | 1 to 10<br/> Default: `10` |
+| `excluded_region` | object   | Optional  | Specifies areas within the cameras view to ignore. This is useful for excluding static parts of the camera stream, like parts of the boat. | A list of coordinates in frame. |
