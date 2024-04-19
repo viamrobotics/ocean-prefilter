@@ -2,10 +2,10 @@
 
 This module implements the [`rdk:service:vision` API](https://docs.viam.com/ml/vision/#api) in an `ocean-prefilter` model for your machine to find objects of interest in large bodies of water.
 
-A machine configured with this module is equipped to:
-- Locate the horizon, crop the image to only include the water, and then dividing the water into patches.
-- Turn the resultingn patches into histograms, which are interpreted as probability distrubutions for their color/intensity values.
-- Conduct a Kolmogorov-Smirnov test on the histograms from before and after images and determine if the scenes are consistent or if a new element has entered.
+When you configure a machine with this module, the module:
+- Locates the horizon, crops the image to only include the water, and then divides the water into patches.
+- Turns the resulting patches into histograms, which it interprets as probability distrubutions for their color/intensity values.
+- Conducts a Kolmogorov-Smirnov test on the histograms from before and after images and determines if the scenes are consistent or if a new element has appeared.
 
 Strong motion of the waves or bobbing up-and-down of the boat can trigger the pre-filter.
 This vision service only returns one label classification called `TRIGGER` with a confidence of `1.0`.
@@ -15,7 +15,7 @@ This vision service only returns one label classification called `TRIGGER` with 
 To compile this module yourself, follow these steps on your Raspberry Pi:
 
 1. Download and install [`openCV`](https://opencv.org/)
-2. Install the following necesarry libraries:
+2. Install the following necessary libraries:
 ```
 sudo apt-get install libjpeg-dev
 
