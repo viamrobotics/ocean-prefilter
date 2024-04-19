@@ -35,7 +35,7 @@ make ocean-prefilter
 Navigate to the **CONFIGURE** tab of your machine's page in [the Viam app](https://app.viam.com).
 Click the **+** icon next to your machine part in the left-hand menu and select **Service**.
 Select the `vision` type, then search for and select the `ocean-prefilter` model.
-Click **Add module**, then a name or use the suggested name for your service and click **Create**.
+Click **Add module**, then enter a name or use the suggested name for your service and click **Create**.
 
 Click the **{}** (Switch to Advanced) button in the top right of the service panel to edit the service's attributes directly with JSON.
 Copy and paste the following attribute template into your vision service's attributes field:
