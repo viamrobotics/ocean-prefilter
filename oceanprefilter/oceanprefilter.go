@@ -18,6 +18,7 @@ import (
 	vis "go.viam.com/rdk/vision"
 	"go.viam.com/rdk/vision/classification"
 	objdet "go.viam.com/rdk/vision/objectdetection"
+	"go.viam.com/rdk/vision/viscapture"
 	viamutils "go.viam.com/utils"
 )
 
@@ -77,7 +78,9 @@ type prefilter struct {
 	cancelContext           context.Context
 	activeBackgroundWorkers sync.WaitGroup
 	triggerFlag             *atomic.Bool // will be a shared variable
+	currImg                 atomic.Pointer[image.Image]
 	camName                 string
+	properties              vision.Properties
 }
 
 // runConfig are the settings that will be fed to the background thread that will constantly be evaluating images for events
@@ -102,6 +105,11 @@ func newPrefilter(ctx context.Context, deps resource.Dependencies, conf resource
 		Named:       conf.ResourceName().AsNamed(),
 		logger:      logger,
 		triggerFlag: &triggerFlag,
+		properties: vision.Properties{
+			ClassificationSupported: true,
+			DetectionSupported:      false,
+			ObjectPCDsSupported:     false,
+		},
 	}
 	pf.triggerFlag.Store(false)
 
@@ -177,7 +185,7 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 	viamutils.ManagedGo(func() {
 		// if you get an error while running just keep trying forever
 		for {
-			runErr := run(pf.cancelContext, rc, pf.triggerFlag)
+			runErr := run(pf.cancelContext, rc, pf.triggerFlag, &pf.currImg)
 			if runErr != nil {
 				pf.logger.Errorw("background camera stream exited with error", "error", runErr)
 				continue // keep trying to run, forever
@@ -192,7 +200,7 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 
 // run sets up a camera stream and then takes new pictures and processes them for anomalies
 // at the desired frequency.
-func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
+func run(ctx context.Context, rc runConfig, trigger *atomic.Bool, currImg *atomic.Pointer[image.Image]) error {
 	triggerCount := 0
 	if rc.cam == nil {
 		return errors.Errorf("underlying camera %q is nil, cannot start background stream", rc.camName)
@@ -215,6 +223,7 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool) error {
 				trigger.Store(false)
 				return err
 			}
+			currImg.Store(&img)
 			// this function is where the decision happens
 			//isTriggered, err := mlFilter(ctx, img, rc)
 			isTriggered, newHists, err := histogramChangeFilter(oldHists, img, rc)
@@ -312,6 +321,41 @@ func (pf *prefilter) GetObjectPointClouds(
 	extra map[string]interface{},
 ) ([]*vis.Object, error) {
 	return nil, errUnimplemented
+}
+
+func (pf *prefilter) GetProperties(ctx context.Context, extra map[string]interface{}) (*vision.Properties, error) {
+	return &pf.properties, nil
+}
+
+func (pf *prefilter) CaptureAllFromCamera(
+	ctx context.Context,
+	cameraName string,
+	opt viscapture.CaptureOptions,
+	extra map[string]interface{},
+) (viscapture.VisCapture, error) {
+	cls := []classification.Classification{}
+	var img image.Image
+	select {
+	case <-pf.cancelContext.Done():
+		return viscapture.VisCapture{}, pf.cancelContext.Err()
+	case <-ctx.Done():
+		return viscapture.VisCapture{}, ctx.Err()
+	default:
+		if opt.ReturnImage {
+			if cameraName != pf.camName {
+				return viscapture.VisCapture{}, errors.Errorf("Camera name %q given to CaptureAllFromCamera is not the same as configured camera %q", cameraName, pf.camName)
+			}
+			storedImg := pf.currImg.Load()
+			img = *storedImg
+		}
+		if opt.ReturnClassifications {
+			if pf.triggerFlag.Load() {
+				c := classification.NewClassification(1.0, triggerClassName)
+				cls = append(cls, c)
+			}
+		}
+	}
+	return viscapture.VisCapture{Image: img, Classifications: classification.Classifications(cls)}, nil
 }
 
 func (pf *prefilter) Close(ctx context.Context) error {
