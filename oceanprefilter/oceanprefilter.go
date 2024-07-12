@@ -91,7 +91,6 @@ type runConfig struct {
 	detector      vision.Service
 	chosenLabels  map[string]float64
 	frequency     float64
-	minConfidence float64
 	threshold     float64
 	excludedZone  *image.Rectangle
 	motionTrigger bool

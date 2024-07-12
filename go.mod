@@ -6,7 +6,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	go.viam.com/rdk v0.28.0
 	go.viam.com/utils v0.1.79
-	gocv.io/x/gocv v0.36.1
+	gocv.io/x/gocv v0.37.0
 )
 
 require (

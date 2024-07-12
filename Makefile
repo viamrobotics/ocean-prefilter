@@ -69,3 +69,7 @@ docker-amd64-ci: BUILD_PUSH = --push
 docker-amd64-ci:
 	$(BUILD_CMD)
 
+# Test target for running Go tests
+test:
+	go test ./oceanprefilter
+
