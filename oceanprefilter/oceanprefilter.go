@@ -226,7 +226,8 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool, currImg *atomi
 			currImg.Store(&img)
 			// this function is where the decision happens
 			//isTriggered, err := mlFilter(ctx, img, rc)
-			isTriggered, newHists, err := histogramChangeFilter(oldHists, img, rc)
+			//TODO: change this to inference!
+			isTriggered, err := inference(img, rc)
 			if err != nil {
 				rc.logger.Infow("resetting histograms", "error", err.Error())
 				if rc.motionTrigger {
