@@ -1111,6 +1111,8 @@ go4.org/unsafe/assume-no-moving-gc v0.0.0-20230525183740-e7c30c78aeb2 h1:WJhcL4p
 go4.org/unsafe/assume-no-moving-gc v0.0.0-20230525183740-e7c30c78aeb2/go.mod h1:FftLjUGFEDu5k8lt0ddY+HcrH/qU/0qk+H8j9/nTl3E=
 gocv.io/x/gocv v0.36.1 h1:6XkEaPOk7h/umjy+MXgSEtSeCIgcPJhccUjrJFhjdTY=
 gocv.io/x/gocv v0.36.1/go.mod h1:lmS802zoQmnNvXETpmGriBqWrENPei2GxYx5KUxJsMA=
+gocv.io/x/gocv v0.37.0 h1:sISHvnApErjoJodz1Dxb8UAkFdITOB3vXGslbVu6Knk=
+gocv.io/x/gocv v0.37.0/go.mod h1:lmS802zoQmnNvXETpmGriBqWrENPei2GxYx5KUxJsMA=
 goji.io v2.0.2+incompatible h1:uIssv/elbKRLznFUy3Xj4+2Mz/qKhek/9aZQDUMae7c=
 goji.io v2.0.2+incompatible/go.mod h1:sbqFwrtqZACxLBTQcdgVjFh54yGVCvwq8+w49MVMMIk=
 golang.org/x/arch v0.0.0-20210923205945-b76863e36670 h1:18EFjUmQOcUvxNYSkA6jO9VAiXCnxFY6NyDX0bHDmkU=
