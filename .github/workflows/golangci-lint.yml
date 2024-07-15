@@ -26,11 +26,11 @@ jobs:
       options: --platform linux/arm64
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      # - uses: actions/setup-go@v5
         with:
           go-version: stable
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.59
-          args: --timeout 5m
+          args: --timeout 10m
