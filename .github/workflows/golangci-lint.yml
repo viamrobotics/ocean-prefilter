@@ -2,7 +2,7 @@ name: golangci-lint
 
 concurrency: 
   group: ${{ github.workflow }}-${{ github.ref }}
-  
+
 on:
   push:
     branches:
@@ -19,8 +19,8 @@ permissions:
 
 jobs:
   golangci:
-    name: lint
-    runs-on: ubuntu-latest
+    name: lint for linux/arm64
+    runs-on: [buildjet-2vcpu-ubuntu-2204-arm]
     container:
       image: ghcr.io/viamrobotics/ocean-prefilter:arm64
       options: --platform linux/arm64
