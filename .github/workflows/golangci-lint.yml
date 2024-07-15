@@ -33,4 +33,4 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.59
-          args: --timeout 10m
+          args: --timeout 10m -buildvcs=false
