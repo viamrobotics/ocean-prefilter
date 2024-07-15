@@ -1,6 +1,6 @@
 name: golangci-lint
 
-concurrency: 
+concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 
 on:
@@ -8,28 +8,26 @@ on:
     branches:
       - main
       - master
-  pull_request: 
-    branches: 
+  pull_request:
+    branches:
       - main
 
 permissions:
   contents: read
-  # Optional: allow read access to pull request. Use with `only-new-issues` option.
   pull-requests: read
 
 jobs:
   golangci:
     name: lint for linux/arm64
-    runs-on: [buildjet-2vcpu-ubuntu-2204-arm]
+    runs-on: buildjet-2vcpu-ubuntu-2204-arm
     container:
       image: ghcr.io/viamrobotics/ocean-prefilter:arm64
       options: --platform linux/arm64
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          buildvcs: false
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: v1.59
-          args: --timeout 10m
+          fetch-depth: 0  # Ensure full history is fetched for proper VCS operations
+      - name: Run golangci-lint
+        run: |
+          /github/home/golangci-lint-1.59.1-linux-arm64/golangci-lint run --timeout 10m
