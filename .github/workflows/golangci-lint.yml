@@ -17,17 +17,14 @@ jobs:
   golangci:
     name: lint
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/viamrobotics/ocean-prefilter:arm64
+      options: --platform linux/arm64
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: stable
-      - name: Install OpenCV dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libopencv-dev pkg-config
-      - name: Set up pkg-config path
-        run: echo "PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
