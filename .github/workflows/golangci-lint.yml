@@ -26,12 +26,11 @@ jobs:
       options: --platform linux/arm64
     steps:
       - uses: actions/checkout@v4
-        # with:
-        #   buildvcs: false
-      - name: Set up Go
-        uses: actions/setup-go@v2
         with:
-          go-version: '1.15'
+        buildvcs: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.16
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
