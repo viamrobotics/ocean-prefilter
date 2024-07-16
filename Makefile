@@ -73,3 +73,11 @@ docker-amd64-ci:
 test:
 	go test ./oceanprefilter
 
+
+# Docker image and container details
+DOCKER_IMAGE := ghcr.io/viamrobotics/ocean-prefilter:arm64
+
+# Lint rule
+lint:
+	golangci-lint run
+
