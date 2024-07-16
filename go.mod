@@ -1,6 +1,6 @@
 module github.com/viamrobotics/ocean-prefilter
 
-go 1.21
+go 1.21.7
 
 toolchain go1.21.12
 
