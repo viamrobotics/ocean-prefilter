@@ -79,5 +79,6 @@ DOCKER_IMAGE := ghcr.io/viamrobotics/ocean-prefilter:arm64
 
 # Lint rule
 lint:
-	golangci-lint run --timeout 10m
+	GOFLAGS="-buildvcs=false" golangci-lint run --timeout 10m ./
+
 
