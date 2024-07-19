@@ -9,5 +9,9 @@
       "model": "viam-labs:vision:ocean-prefilter"
     }
   ],
+  "build": {
+    "build": "./build.sh", 
+    "arch": ["linux/arm64", "linux/amd64"] 
+  },
   "entrypoint": "ocean-prefilter-appimage"
 }
