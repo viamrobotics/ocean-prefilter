@@ -71,7 +71,7 @@ docker-amd64-ci:
 
 # Test target for running Go tests
 test:
-	go test ./oceanprefilter
+	LD_LIBRARY_PATH=/usr/local/lib:/usr/lib go test ./oceanprefilter
 
 
 # Docker image and container details
