@@ -70,8 +70,8 @@ docker-amd64-ci:
 	$(BUILD_CMD)
 
 # Test target for running Go tests
-# test:
-# 	go test ./oceanprefilter
+test:
+	go test ./oceanprefilter
 
 
 # Docker image and container details

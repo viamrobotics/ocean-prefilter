@@ -27,5 +27,5 @@ jobs:
     - name: Run lint
       run: make lint
 
-    # - name: Run unit tests
-    #   run: make test
+    - name: Run unit tests
+      run: make test
