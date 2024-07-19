@@ -3,7 +3,6 @@ package oceanprefilter
 import (
 	"fmt"
 	"image"
-	"image/draw"
 	"math"
 
 	"github.com/pkg/errors"
@@ -113,15 +112,6 @@ func histogramTrigger(oldHist, newHist Histogram, thresh float64) bool {
 	return trigger
 }
 
-func convertToFloat64(uint8Slice []uint8) []float64 {
-	float64Slice := make([]float64, len(uint8Slice))
-
-	for i, v := range uint8Slice {
-		float64Slice[i] = float64(v)
-	}
-	return float64Slice
-}
-
 func createGrayHistograms(pic image.Image) []Histogram {
 	hists := make([]Histogram, 0, 1)
 	img := toGray(pic)
@@ -134,47 +124,6 @@ func createGrayHistograms(pic image.Image) []Histogram {
 	}
 	hists = append(hists, Hist(32, 0, 256, pix)) // 32 bin, 8 values in each bin in 255 total
 	return hists
-}
-
-func createColorHistograms(pic image.Image) []Histogram {
-	hists := make([]Histogram, 0, 3)
-	img := image.NewRGBA(pic.Bounds())
-	if rgbaImg, ok := pic.(*image.RGBA); ok {
-		img = rgbaImg
-	} else {
-		draw.Draw(img, pic.Bounds(), pic, pic.Bounds().Min, draw.Src)
-	}
-	rPix := []float64{}
-	gPix := []float64{}
-	bPix := []float64{}
-	for x := 0; x < img.Bounds().Dx(); x++ {
-		for y := 0; y < img.Bounds().Dy(); y++ {
-			c := img.RGBAAt(x, y)
-			rPix = append(rPix, float64(c.R))
-			gPix = append(gPix, float64(c.G))
-			bPix = append(bPix, float64(c.B))
-		}
-	}
-	hists = append(hists, Hist(32, 0, 256, rPix)) // 32 bin, 8 values in each bin in 255 total
-	hists = append(hists, Hist(32, 0, 256, gPix)) // 32 bin, 8 values in each bin in 255 total
-	hists = append(hists, Hist(32, 0, 256, bPix)) // 32 bin, 8 values in each bin in 255 total
-	return hists
-}
-
-// basicCompare compares two histograms and returns a measure of their difference
-func basicCompare(hist1, hist2 Histogram) float64 {
-	var sum float64
-	for i := range hist1.Buckets {
-		diff := hist1.Buckets[i].Count - hist2.Buckets[i].Count
-		if diff < 0 {
-			diff = -diff
-		}
-		sum += float64(diff)
-	}
-	// Normalize the difference based on the number of pixels
-	totalPixels := float64(hist1.Count + hist2.Count) // hist2 has the same number of pixels
-	score := sum / totalPixels
-	return score
 }
 
 // histogramToECDF converts a histogram to an empirical cumulative distribution function (ECDF)

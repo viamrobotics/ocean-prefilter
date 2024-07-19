@@ -69,3 +69,16 @@ docker-amd64-ci: BUILD_PUSH = --push
 docker-amd64-ci:
 	$(BUILD_CMD)
 
+# Test target for running Go tests
+test:
+	LD_LIBRARY_PATH=/usr/local/lib:/usr/lib go test ./oceanprefilter
+
+
+# Docker image and container details
+DOCKER_IMAGE := ghcr.io/viamrobotics/ocean-prefilter:arm64
+
+# Lint rule
+lint:
+	GOFLAGS="-buildvcs=false" golangci-lint run --timeout 10m ./
+
+
