@@ -64,7 +64,7 @@ type Config struct {
 // this Validate checks if the camera and detector(optional) exist for the module's vision model.
 func (cfg *Config) Validate(path string) ([]string, error) {
 	if cfg.CameraName == "" {
-		return []string{}, nil
+		return nil, nil
 	}
 	return []string{cfg.CameraName}, nil
 }
