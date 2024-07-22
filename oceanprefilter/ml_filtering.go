@@ -5,7 +5,7 @@ import (
 	"image"
 )
 
-func mlFilter(ctx context.Context, img image.Image, rc runConfig) (bool, error) {
+func mlFilter(ctx context.Context, img image.Image, rc RunConfig) (bool, error) {
 	// first try if the optional detection is present
 	if rc.detector == nil {
 		return false, nil

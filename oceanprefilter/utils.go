@@ -63,17 +63,17 @@ func splitUpImage(img image.Image, exZone *image.Rectangle, yValue, nh, nv int) 
 		return nil, errors.New("input image to split up is nil")
 	}
 	if nv <= 0 {
-		return nil, fmt.Errorf("number of vertical lines must be greater than 0")
+		return nil, fmt.Errorf("Vertical bands must be greater than 0, got %v", nv)
 	}
 	if nh <= 0 {
-		return nil, fmt.Errorf("number of horizontal lines must be greater than 0")
+		return nil, fmt.Errorf("horizontal bands must be greater than 0, got %v", nh)
 	}
 
 	// Crop the image from yValue to img.Bounds().Max.Y
 	bounds := img.Bounds()
 	croppedHeight := bounds.Max.Y - yValue
 	if croppedHeight <= 0 {
-		return nil, fmt.Errorf("yValue must be within the image bounds")
+		return nil, errors.New("yValue must be within the image bounds")
 	}
 	// edit exluded zone to take the crop into account
 	excludedBox := image.Rectangle{}
@@ -115,17 +115,17 @@ func splitUpImageConst(img image.Image, exZone *image.Rectangle, yValue, h, w in
 		return nil, errors.New("input image to split up is nil")
 	}
 	if h <= 0 {
-		return nil, fmt.Errorf("height must be greater than 0")
+		return nil, fmt.Errorf("height must be greater than 0, got %v", h)
 	}
 	if w <= 0 {
-		return nil, fmt.Errorf("width must be greater than 0")
+		return nil, fmt.Errorf("width must be greater than 0, got %v", w)
 	}
 
 	// Crop the image from yValue to img.Bounds().Max.Y
 	bounds := img.Bounds()
 	croppedHeight := bounds.Max.Y - yValue
 	if croppedHeight <= 0 {
-		return nil, fmt.Errorf("yValue must be within the image bounds")
+		return nil, errors.New("yValue must be within the image bounds")
 	}
 	// edit exluded zone to take the crop into account
 	excludedBox := image.Rectangle{}
@@ -170,10 +170,10 @@ func splitUpImageConst(img image.Image, exZone *image.Rectangle, yValue, h, w in
 
 			if flag {
 				resized := imaging.Resize(bandImg, w, h, imaging.Lanczos)
-				bandImg = (*image.RGBA)(resized)
+				images = append(images, resized)
+			} else {
+				images = append(images, bandImg)
 			}
-
-			images = append(images, bandImg)
 		}
 	}
 	return images, nil

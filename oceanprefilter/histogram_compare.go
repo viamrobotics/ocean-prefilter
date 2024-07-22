@@ -47,10 +47,10 @@ func Hist(buckets int, minVal, maxVal float64, input []float64) Histogram {
 }
 
 func histogramChangeFilter(
-	oldHists []Histogram, newImg image.Image, rc runConfig,
+	oldHists []Histogram, newImg image.Image, rc RunConfig,
 ) (bool, []Histogram, error) {
 	firstHist := false
-	thresh := rc.threshold
+	thresh := rc.Threshold
 	if len(oldHists) == 0 {
 		firstHist = true // get the data for the first histogram
 	}
@@ -69,7 +69,7 @@ func histogramChangeFilter(
 	if cropY >= (newImg.Bounds().Max.Y-1) || cropY <= 1 {
 		return false, nil, errors.Errorf("could not find horizon in image. Got a horizon value of y = %v", cropY)
 	}
-	imgs, err := splitUpImage(newImg, rc.excludedZone, cropY, NHSplit, NVSplit)
+	imgs, err := splitUpImage(newImg, rc.ExcludedZone, cropY, NHSplit, NVSplit)
 	if err != nil {
 		return false, nil, err
 	}

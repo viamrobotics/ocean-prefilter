@@ -3,11 +3,12 @@ package oceanprefilter
 
 import (
 	"context"
+	_ "embed"
+	"image"
 	"sync"
 	"sync/atomic"
 	"time"
-	_ "embed"
-	"image"
+
 	xgb "github.com/Elvenson/xgboost-go"
 	"github.com/Elvenson/xgboost-go/activation"
 	"github.com/Elvenson/xgboost-go/inference"
@@ -81,11 +82,11 @@ type prefilter struct {
 	currImg                 atomic.Pointer[image.Image]
 	camName                 string
 	properties              vision.Properties
-	rc						runConfig
+	rc                      RunConfig
 }
 
-// runConfig are the settings that will be fed to the background thread that will constantly be evaluating images for events
-type runConfig struct {
+// RunConfig are the settings that will be fed to the background thread that will constantly be evaluating images for events
+type RunConfig struct {
 	logger        logging.Logger
 	cam           camera.Camera
 	camName       string
@@ -93,11 +94,11 @@ type runConfig struct {
 	chosenLabels  map[string]float64
 	frequency     float64
 	minConfidence float64
-	threshold     float64
-	excludedZone  *image.Rectangle
+	Threshold     float64
+	ExcludedZone  *image.Rectangle
 	motionTrigger bool
 	debug         bool
-	model		  *inference.Ensemble
+	Model         *inference.Ensemble
 }
 
 // newPrefilter creates the vision service classifier
@@ -140,10 +141,10 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 	}
 
 	// the run config will store the relevant variables from the prefilterConfig for running
-	rc := runConfig{}
+	rc := RunConfig{}
 	rc.logger = pf.logger
 	rc.debug = prefilterConfig.Debug
-	// now load the relevant info into the runConfig
+	// now load the relevant info into the RunConfig
 	if prefilterConfig.MaxFrequency < 0 {
 		return errors.New("max_frequency_hz must be a non-negative number")
 	}
@@ -154,9 +155,9 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 	if prefilterConfig.Threshold > 1.0 || prefilterConfig.Threshold < 0 {
 		return errors.New("threshold must be a number between 0 and 1")
 	}
-	rc.threshold = prefilterConfig.Threshold
-	if rc.threshold == 0 {
-		rc.threshold = DefaultThreshold
+	rc.Threshold = prefilterConfig.Threshold
+	if rc.Threshold == 0 {
+		rc.Threshold = DefaultThreshold
 	}
 
 	rc.motionTrigger = prefilterConfig.TriggerOnMotion
@@ -167,15 +168,14 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 		}
 		er := prefilterConfig.ExcludedRegion
 		theZone := image.Rectangle{image.Point{er[0], er[1]}, image.Point{er[2], er[3]}}
-		rc.excludedZone = &theZone
+		rc.ExcludedZone = &theZone
 	}
 	ensemble, err := xgb.LoadXGBoostFromJSONBytes(modelbytes,
-		"", 2, 8, &activation.Softmax{}) // wrong activation logistic is 1 class only
+		"", 2, 8, &activation.Softmax{})
 	if err != nil {
-		panic(err)
+		return errors.Wrapf(err, "unable to properly load XGBoost model")
 	}
-	rc.model = ensemble
-
+	rc.Model = ensemble
 
 	if prefilterConfig.CameraName != "" {
 		rc.camName = prefilterConfig.CameraName
@@ -184,7 +184,7 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 		if err != nil {
 			return errors.Wrapf(err, "unable to get camera %v for ocean prefilter", prefilterConfig.CameraName)
 		}
-		
+
 		// now start the background thread only if a camera dependency is given
 		pf.activeBackgroundWorkers.Add(1)
 		viamutils.ManagedGo(func() {
@@ -208,7 +208,7 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 
 // run sets up a camera stream and then takes new pictures and processes them for anomalies
 // at the desired frequency.
-func run(ctx context.Context, rc runConfig, trigger *atomic.Bool, currImg *atomic.Pointer[image.Image]) error {
+func run(ctx context.Context, rc RunConfig, trigger *atomic.Bool, currImg *atomic.Pointer[image.Image]) error {
 	triggerCount := 0
 	if rc.cam == nil {
 		return errors.Errorf("underlying camera %q is nil, cannot start background stream", rc.camName)
@@ -231,9 +231,9 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool, currImg *atomi
 			}
 			currImg.Store(&img)
 			// this function is where the decision happens
-			isTriggered, err := make_inference(img, rc)
+			isTriggered, err := MakeInference(img, rc)
 			if err != nil {
-				rc.logger.Infow("resetting histograms", "error", err.Error())
+				rc.logger.Infow("inference error", "error", err.Error())
 				if rc.motionTrigger {
 					isTriggered = true
 				}
@@ -247,7 +247,6 @@ func run(ctx context.Context, rc runConfig, trigger *atomic.Bool, currImg *atomi
 			} else {
 				trigger.Store(false)
 			}
-			// oldHists = newHists
 			release()
 			if rc.debug && trigger.Load() {
 				rc.logger.Info("TRIGGER is true")
@@ -305,33 +304,16 @@ func (pf *prefilter) ClassificationsFromCamera(
 func (pf *prefilter) Classifications(ctx context.Context, img image.Image,
 	n int, extra map[string]interface{},
 ) (classification.Classifications, error) {
-	if pf.camName == "" {
-		isTriggered, err := make_inference(img, pf.rc)
-		if err != nil {
-			pf.logger.Infow("classification error", "error", err.Error())
-		}
-		cls := []classification.Classification{}
-		if isTriggered {
-			c := classification.NewClassification(1.0, triggerClassName)
-			cls = append(cls, c)
-		}
-		return classification.Classifications(cls), nil
-
-	} else {
-		select {
-		case <-ctx.Done():
-			return nil, errors.Wrap(ctx.Err(), "module might be configuring")
-		case <-pf.cancelContext.Done():
-			return nil, errors.Wrap(pf.cancelContext.Err(), "lost connection with background camera stream loop")
-		default:
-			cls := []classification.Classification{}
-			if pf.triggerFlag.Load() {
-				c := classification.NewClassification(1.0, triggerClassName)
-				cls = append(cls, c)
-			}
-			return classification.Classifications(cls), nil
-		}
+	isTriggered, err := MakeInference(img, pf.rc)
+	if err != nil {
+		pf.logger.Infow("classification error", "error", err.Error())
 	}
+	cls := []classification.Classification{}
+	if isTriggered {
+		c := classification.NewClassification(1.0, triggerClassName)
+		cls = append(cls, c)
+	}
+	return classification.Classifications(cls), nil
 }
 
 func (pf *prefilter) GetObjectPointClouds(

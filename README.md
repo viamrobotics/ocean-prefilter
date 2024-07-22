@@ -4,8 +4,8 @@ This module implements the [`rdk:service:vision` API](https://docs.viam.com/ml/v
 
 When you configure a machine with this module, the module:
 - Locates the horizon, crops the image to only include the water, and then divides the water into patches.
-- Performs feature extraction on the resulting patches, average pooling the the patches with a window size of (10, 2) and taking the RGB mean of each sub-patch
-- Classifies the frame using XGBoost - this will trigger if any patch in the given image is found interesting
+- Performs feature extraction on the resulting patches, average pooling the the patches with a window size of (10, 2) and taking the mean of the R, G, B channels for each resulting sub-patch
+- Classifies the frame using XGBoost - this will trigger if any patch in the given image is found "interesting"
 
 Strong motion of the waves or bobbing up-and-down of the boat can trigger the pre-filter.
 This vision service only returns one label classification called `TRIGGER` with a confidence of `1.0`.
@@ -56,7 +56,14 @@ Copy and paste the following attribute template into your vision service's attri
 
 | Name  | Type  | Inclusion | Description | Value |
 |-------|-------|-----------|-------------| ------|
-| `camera_name` | string | Optional | Links the pre-filter to a specific camera and continuously monitors the camera stream for changes or triggers in the background. | The name of your camera component. If the camera name is not provided, you can input your own image from the CLI |
+| `camera_name` | string | Optional | Links the pre-filter to a specific camera and continuously monitors the camera stream for changes or triggers in the background. | The name of your camera component. If the camera name is not provided, you can input your own image from the VIAM API |
 | `threshold`  | int | Optional | Determines the sensitivity of the pre-filter trigger. This enables the pre-filter to detect significant motion such as boat or wave movements, and identifies objects like other boats, buoys, or any deviations from typical water patterns. | 0 to 1<br/> Default: `0.25` |
 | `max_frequency_hz`| int | Optional  | Determines the frequency that the vision service monitors the background camera stream for changes. If your scene changes very slowly set this below 1. | 1 to 10<br/> Default: `10` |
 | `excluded_region` | object   | Optional  | Specifies areas within the cameras view to ignore. This is useful for excluding static parts of the camera stream, like parts of the boat. | A list of coordinates in frame. |
+
+### Example
+The test module example gives an example of how to run/use the service
+provide your test directory to the module in the form of a command line argument
+```
+  run main.go <your directory here>
+```
