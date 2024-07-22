@@ -1,99 +1,104 @@
 package oceanprefilter
 
 import (
-	"fmt"
 	"image"
-	"github.com/Elvenson/xgboost-go/activation"
+	"math"
 	"github.com/Elvenson/xgboost-go/mat"
-	// "github.com/Elvenson/xgboost-go/models"
+	"github.com/pkg/errors"
 )
 
-// Vector represents a dense vector.
-type Vector []float32
+func flatten(matrix mat.SparseMatrix) mat.SparseMatrix{
+	flatVector := mat.SparseVector{}
+	offset := 0
 
-// SparseVector is a map with index as a key and value as a value at that index.
-type SparseVector map[int]float32
+	for _, vector := range matrix.Vectors {
+		for idx, value := range vector {
+			flatIndex := offset + idx
+			flatVector[flatIndex] = value
+		}
+		offset += len(vector)
+	}
 
-// SparseMatrix is a list of sparse vectors.
-type SparseMatrix struct {
-	Vectors []SparseVector
+	flatMatrix := mat.SparseMatrix{
+		Vectors: []mat.SparseVector{flatVector},
+	}
+
+	return flatMatrix
 }
 
 
-// ConvertImageToSparseMatrix converts an image to a SparseMatrix.
-func ConvertImageToSparseMatrix(img image.Image) SparseMatrix {
+func AvgPoolFull(img image.Image, patchSize image.Point) mat.SparseMatrix {
 	bounds := img.Bounds()
-	width, height := bounds.Max.X, bounds.Max.Y
+	width, height := bounds.Dx(), bounds.Dy()
+	patchWidth, patchHeight := patchSize.X, patchSize.Y
 
-	matrix := SparseMatrix{
-		Vectors: make([]SparseVector, height),
-	}
+	h := height / patchHeight
+	w := width / patchWidth
 
-	for y := 0; y < height; y++ {
-		sparseVector := make(SparseVector)
-		for x := 0; x < width; x++ {
-			// Extract RGB values from the image
-			r, g, b, _ := img.At(x, y).RGBA()
+	downsize := make([]mat.SparseVector, h)
 
-			// Compute average of RGB values
-			avg := (float32(r/257) + float32(g/257) + float32(b/257)) / 3.0 // 257 is the divisor to scale down from 16-bit to 8-bit range
-
-			if avg > 0 { // Store non-zero pixels
-				sparseVector[x] = avg
+	for i := 0; i < h; i++ {
+		row := make(mat.SparseVector)
+		for j := 0; j < w; j++ {
+			sum := 0.0
+			count := 0
+			for x := 0; x < patchWidth; x++ {
+				for y := 0; y < patchHeight; y++ {
+					px := bounds.Min.X + j*patchWidth + x
+					py := bounds.Min.Y + i*patchHeight + y
+					r, g, b, a := img.At(px, py).RGBA()
+					avg := float64(r+g+b) / 3.0 / 256.0
+					if a > 0 {
+						sum += avg
+						count++
+					}
+				}
+			}
+			if count > 0 {
+				row[j] = float32(sum / float64(count))
 			}
 		}
-		matrix.Vectors[y] = sparseVector
+		downsize[i] = row
 	}
 
-	return matrix
+	return mat.SparseMatrix{Vectors: downsize}
+
 }
-
-func inference(input image.Image, rc runConfig) (bool, error) {
-	ensemble, err := models.LoadXGBoostFromJSON("xg_boost_dump.json",
-		"", 1, 4, &activation.Logistic{})
-	if err != nil {
-		panic(err)
-	}
-
-	// *******
-	thresh := rc.threshold
+func make_inference(input image.Image, rc runConfig) (bool, error) {
 	// find the horizon, take the average y value
-	linePoints, err := findHorizonLine(newImg)
+	linePoints, err := findHorizonLine(input)
 	if err != nil {
-		return false, nil, err
+		return false, err
 	}
 	if len(linePoints) < 2 {
-		return false, nil, errors.New("function to find the horizon line returned less than 2 points")
+		return false, errors.New("function to find the horizon line returned less than 2 points")
 	}
 	cropY := int(math.Max(float64(linePoints[0].Y), float64(linePoints[1].Y)))
 	if rc.debug {
 		rc.logger.Debugf("found horizon at y = %v", cropY)
 	}
-	if cropY >= (newImg.Bounds().Max.Y-1) || cropY <= 1 {
-		return false, nil, errors.Errorf("could not find horizon in image. Got a horizon value of y = %v", cropY)
+	if cropY >= (input.Bounds().Max.Y-1) || cropY <= 1 {
+		return false, errors.Errorf("could not find horizon in image. Got a horizon value of y = %v", cropY)
 	}
-	imgs, err := splitUpImage(newImg, rc.excludedZone, cropY, NHSplit, NVSplit)
+	imgs, err := splitUpImageConst(input, rc.excludedZone, cropY, 80, 200)
 	if err != nil {
-		return false, nil, err
+		return false, err
 	}
 
 	// new code -> checks if any square is interesting
-	trigger := false
-	for i, img := range imgs {
-		// change image format
-		img = ConvertImageToSparseMatrix(img)
-		result, err := ensemble.PredictProba(img)
+	for _, img := range imgs {
+		in_mat := AvgPoolFull(img, image.Point{10, 2})
+		in_mat = flatten(in_mat)
+
+		result, err := rc.model.Predict(in_mat)
 		if err != nil {
 			panic(err)
 		}
-		
-		if result {
-			return true
+
+		if (*result.Vectors[0])[0] == 1 {
+			return true, nil
 		}
 	}
 
-// ******************
-
-	// fmt.Printf("%+v\n", triggers)
 	return false, nil
 }
