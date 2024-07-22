@@ -13,7 +13,7 @@ import (
 )
 
 func TestXGBoostInference(t *testing.T) {
-	f, err := os.Open("test_data/2288.jpg")
+	f, _ := os.Open("test_data/2288.jpg")
 	defer f.Close()
 	img, _, err := image.Decode(f)
 	test.That(t, err, test.ShouldBeNil)
@@ -44,7 +44,7 @@ func TestSplitData(t *testing.T) {
 			continue
 		}
 		fp := filepath.Join(dir, file.Name())
-		f, err := os.Open(fp)
+		f, _ := os.Open(fp)
 		defer f.Close()
 		img, _, err := image.Decode(f)
 		test.That(t, err, test.ShouldBeNil)
@@ -56,7 +56,7 @@ func TestSplitData(t *testing.T) {
 			Max: image.Point{X: 580, Y: 480},
 		}
 		rc.ExcludedZone = &rect
-		linePoints, err := findHorizonLine(img)
+		linePoints, _ := findHorizonLine(img)
 		cropY := int(math.Max(float64(linePoints[0].Y), float64(linePoints[1].Y)))
 
 		_, err = splitUpImageConst(img, rc.ExcludedZone, cropY, 80, 200)
