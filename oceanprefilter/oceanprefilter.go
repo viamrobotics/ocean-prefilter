@@ -90,7 +90,6 @@ type RunConfig struct {
 	logger        logging.Logger
 	cam           camera.Camera
 	camName       string
-	detector      vision.Service
 	chosenLabels  map[string]float64
 	frequency     float64
 	minConfidence float64
