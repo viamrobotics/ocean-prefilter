@@ -1,7 +1,6 @@
 package oceanprefilter
 
 import (
-	"fmt"
 	"image"
 	"image/draw"
 	"math"
@@ -63,10 +62,10 @@ func splitUpImageConst(img image.Image, exZone *image.Rectangle, yValue, h, w in
 		return nil, errors.New("input image to split up is nil")
 	}
 	if h <= 0 {
-		return nil, fmt.Errorf("height must be greater than 0, got %v", h)
+		return nil, errors.Errorf("height must be greater than 0, got %v", h)
 	}
 	if w <= 0 {
-		return nil, fmt.Errorf("width must be greater than 0, got %v", w)
+		return nil, errors.Errorf("width must be greater than 0, got %v", w)
 	}
 
 	// Crop the image from yValue to img.Bounds().Max.Y

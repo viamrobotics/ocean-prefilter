@@ -232,10 +232,7 @@ func run(ctx context.Context, rc RunConfig, trigger *atomic.Bool, currImg *atomi
 			// this function is where the decision happens
 			isTriggered, err := MakeInference(img, rc)
 			if err != nil {
-				rc.logger.Infow("inference error", "error", err.Error())
-				if rc.motionTrigger {
-					isTriggered = true
-				}
+				return errors.Errorf("inference error: %q", err)
 			}
 			if isTriggered {
 				triggerCount = triggerCountdown
