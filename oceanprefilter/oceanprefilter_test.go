@@ -7,11 +7,14 @@ import (
 	"sync/atomic"
 	"testing"
 	"unsafe"
-
+    "os"
 	"go.viam.com/rdk/services/vision"
 	"go.viam.com/rdk/vision/classification"
 	"go.viam.com/rdk/vision/viscapture"
 	"go.viam.com/test"
+
+    xgb "github.com/Elvenson/xgboost-go"
+	"github.com/Elvenson/xgboost-go/activation"
 )
 
 // MockImage creates a mock RGBA image for testing purposes.
@@ -35,7 +38,7 @@ func TestConfigValidate(t *testing.T) {
 	path := "test_path"
 	dependencies, err := cfg.Validate(path)
 	test.That(t, dependencies, test.ShouldBeNil)
-	test.That(t, err.Error(), test.ShouldEqual, `expected "camera_name" attribute for object tracker "test_path"`)
+    test.That(t, err, test.ShouldBeNil)
 
 	// Test case where detector name is empty
 	cfg = &Config{
@@ -45,16 +48,6 @@ func TestConfigValidate(t *testing.T) {
 	path = "test_path"
 	dependencies, err = cfg.Validate(path)
 	test.That(t, dependencies, test.ShouldResemble, []string{"camera1"})
-	test.That(t, err, test.ShouldBeNil)
-
-	// Test case where both camera name and detector name are provided
-	cfg = &Config{
-		CameraName:   "camera1",
-		DetectorName: "detector1",
-	}
-	path = "test_path"
-	dependencies, err = cfg.Validate(path)
-	test.That(t, dependencies, test.ShouldResemble, []string{"camera1", "detector1"})
 	test.That(t, err, test.ShouldBeNil)
 }
 
@@ -104,43 +97,42 @@ func TestClassificationsFromCamera(t *testing.T) {
 }
 
 func TestClassifications(t *testing.T) {
+    // only tests that get_classifications works with a given image
+    // context no longer needed for this function
+    rc := RunConfig{}
+    ensemble, err := xgb.LoadXGBoostFromJSONBytes(modelbytes,
+		"", 2, 8, &activation.Softmax{})
+    test.That(t, err, test.ShouldBeNil)
+    rc.Model = ensemble
+    rc.Threshold = 0.25
+	rect := image.Rectangle{
+		Min: image.Point{X: 250, Y: 350},
+		Max: image.Point{X: 580, Y: 480},
+	}
+	rc.ExcludedZone = &rect
     pf := &prefilter{
         triggerFlag:   &atomic.Bool{},
         cancelContext: context.Background(),
+        rc: rc,
     }
 
     ctx := context.Background()
-    img := image.NewRGBA(image.Rect(0, 0, 100, 100))
+	f, err := os.Open("test_data/2288.jpg")
+	test.That(t, err, test.ShouldBeNil)
+	defer f.Close()
+	img, _, err := image.Decode(f)
+	test.That(t, err, test.ShouldBeNil)
+
+    classifications, err := pf.Classifications(ctx, img, 1, nil)
+    test.That(t, err, test.ShouldBeNil)
+    test.That(t, classifications, test.ShouldNotBeNil)
 
     // Test case where context is canceled
     cancelledCtx, cancel := context.WithCancel(ctx)
     cancel()
-    classifications, err := pf.Classifications(cancelledCtx, img, 1, nil)
-    test.That(t, classifications, test.ShouldBeNil)
-    test.That(t, err.Error(), test.ShouldEqual, "module might be configuring: context canceled")
-
-    // Test case where internal context is canceled
-    cancelledInternalCtx, internalCancel := context.WithCancel(ctx)
-    pf.cancelContext = cancelledInternalCtx
-    internalCancel()
-    classifications, err = pf.Classifications(ctx, img, 1, nil)
-    test.That(t, classifications, test.ShouldBeNil)
-    test.That(t, err.Error(), test.ShouldEqual, "lost connection with background camera stream loop: context canceled")
-
-    // Test case where trigger flag is not set
-    pf.cancelContext = context.Background()
-    classifications, err = pf.Classifications(ctx, img, 1, nil)
-    test.That(t, classifications, test.ShouldBeEmpty)
+    classifications, err = pf.Classifications(cancelledCtx, img, 1, nil)
     test.That(t, err, test.ShouldBeNil)
-
-    // Test case where trigger flag is set
-    pf.triggerFlag.Store(true)
-    classifications, err = pf.Classifications(ctx, img, 1, nil)
-    expectedClassifications := classification.Classifications{
-        classification.NewClassification(1.0, "TRIGGER"),
-    }
-    test.That(t, classifications, test.ShouldResemble, expectedClassifications)
-    test.That(t, err, test.ShouldBeNil)
+    test.That(t, classifications, test.ShouldNotBeNil)
 }
 
 func TestGetProperties(t *testing.T) {
