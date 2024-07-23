@@ -6,7 +6,7 @@ toolchain go1.21.12
 
 require (
 	github.com/Elvenson/xgboost-go v0.1.4
-	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
+	github.com/disintegration/imaging v1.6.2
 	github.com/pkg/errors v0.9.1
 	go.viam.com/rdk v0.28.0
 	go.viam.com/test v1.1.1-0.20220913152726-5da9916c08a2
@@ -37,7 +37,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
-	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/edaniels/golog v0.0.0-20230215213219-28954395e8d0 // indirect
 	github.com/edaniels/lidario v0.0.0-20220607182921-5879aa7b96dd // indirect
@@ -62,7 +61,7 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gonuts/binary v0.2.0 // indirect
 	github.com/google/flatbuffers v2.0.8+incompatible // indirect
-	github.com/google/go-cmp v0.5.9 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/s2a-go v0.1.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
