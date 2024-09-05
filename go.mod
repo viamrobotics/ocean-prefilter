@@ -1,8 +1,6 @@
 module github.com/viamrobotics/ocean-prefilter
 
-go 1.21.7
-
-toolchain go1.21.12
+go 1.21.13
 
 require (
 	github.com/Elvenson/xgboost-go v0.1.4
