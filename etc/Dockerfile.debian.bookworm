@@ -43,11 +43,11 @@ RUN mkdir -p /root/opt/src
 # install Go
 
 RUN if [ "$BASE_TAG" = "amd64" ]; then \
-    wget https://go.dev/dl/go1.21.9.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.21.9.linux-amd64.tar.gz; \
+    wget https://go.dev/dl/go1.21.13.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.21.13.linux-amd64.tar.gz; \
     elif [ "$BASE_TAG" = "arm64" ]; then \
-    wget https://go.dev/dl/go1.21.9.linux-arm64.tar.gz && \
-    tar -C /usr/local -xzf go1.21.9.linux-arm64.tar.gz; \
+    wget https://go.dev/dl/go1.21.13.linux-arm64.tar.gz && \
+    tar -C /usr/local -xzf go1.21.13.linux-arm64.tar.gz; \
     else \
         echo "Unsupported architecture $BASE_TAG"; \
         exit 1; \
