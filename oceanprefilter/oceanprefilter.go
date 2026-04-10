@@ -63,11 +63,11 @@ type Config struct {
 
 // Validate validates the config and returns implicit dependencies,
 // this Validate checks if the camera and detector(optional) exist for the module's vision model.
-func (cfg *Config) Validate(path string) ([]string, error) {
+func (cfg *Config) Validate(path string) ([]string, []string, error) {
 	if cfg.CameraName == "" {
-		return nil, nil
+		return nil, nil, nil
 	}
-	return []string{cfg.CameraName}, nil
+	return []string{cfg.CameraName}, nil, nil
 }
 
 // prefilter is the main struct for this module. It is a vision service classifier that will return a "TRIGGER" class
@@ -205,25 +205,28 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 	return nil
 }
 
-// run sets up a camera stream and then takes new pictures and processes them for anomalies
+// run polls the camera for new pictures and processes them for anomalies
 // at the desired frequency.
 func run(ctx context.Context, rc RunConfig, trigger *atomic.Bool, currImg *atomic.Pointer[image.Image]) error {
 	triggerCount := 0
 	if rc.cam == nil {
 		return errors.Errorf("underlying camera %q is nil, cannot start background stream", rc.camName)
 	}
-	stream, err := rc.cam.Stream(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer stream.Close(ctx)
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		default:
 			start := time.Now()
-			img, release, err := stream.Next(ctx)
+			imgs, _, err := rc.cam.Images(ctx, nil, nil)
+			if err != nil {
+				trigger.Store(false)
+				return err
+			}
+			if len(imgs) == 0 {
+				continue
+			}
+			img, err := imgs[0].Image(ctx)
 			if err != nil {
 				trigger.Store(false)
 				return err
@@ -243,7 +246,6 @@ func run(ctx context.Context, rc RunConfig, trigger *atomic.Bool, currImg *atomi
 			} else {
 				trigger.Store(false)
 			}
-			release()
 			if rc.debug && trigger.Load() {
 				rc.logger.Info("TRIGGER is true")
 			}
