@@ -35,7 +35,7 @@ jobs:
   publish:
     needs: validate-tag
     name: Upload module for linux/arm64
-    runs-on: [buildjet-2vcpu-ubuntu-2204-arm]
+    runs-on: [github-linux-arm64-8core]
     container:
       image: ghcr.io/viamrobotics/ocean-prefilter:arm64
       options: --platform linux/arm64
