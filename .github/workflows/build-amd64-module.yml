@@ -44,7 +44,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v3
       - name: Build
-        run: make module.tar.gz
+        run: make module.tar.gz ARCH_TAG=amd64
       - name: Upload
         uses: viamrobotics/upload-module@v1
         with:
