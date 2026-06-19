@@ -191,7 +191,7 @@ func TestCaptureAllFromCamera(t *testing.T) {
     cancelledCtx, cancel := context.WithCancel(ctx)
     cancel()
     capture, err := pf.CaptureAllFromCamera(cancelledCtx, "configuredCamera", viscapture.CaptureOptions{ReturnImage: true, ReturnClassifications: true}, nil)
-    test.That(t, capture.Image, test.ShouldBeEmpty)
+    test.That(t, capture.Image, test.ShouldBeNil)
     test.That(t, capture.Classifications, test.ShouldBeEmpty)
     test.That(t, err.Error(), test.ShouldEqual, "context canceled")
 
@@ -200,20 +200,20 @@ func TestCaptureAllFromCamera(t *testing.T) {
     pf.cancelContext = cancelledInternalCtx
     internalCancel()
     capture, err = pf.CaptureAllFromCamera(ctx, "configuredCamera", viscapture.CaptureOptions{ReturnImage: true, ReturnClassifications: true}, nil)
-    test.That(t, capture.Image, test.ShouldBeEmpty)
+    test.That(t, capture.Image, test.ShouldBeNil)
     test.That(t, capture.Classifications, test.ShouldBeEmpty)
     test.That(t, err.Error(), test.ShouldEqual, "context canceled")
 
     // Test case where camera name does not match
     pf.cancelContext = context.Background()
     capture, err = pf.CaptureAllFromCamera(ctx, "incorrectCamera", viscapture.CaptureOptions{ReturnImage: true, ReturnClassifications: true}, nil)
-    test.That(t, capture.Image, test.ShouldBeEmpty)
+    test.That(t, capture.Image, test.ShouldBeNil)
     test.That(t, capture.Classifications, test.ShouldBeEmpty)
     test.That(t, err.Error(), test.ShouldEqual, "Camera name \"incorrectCamera\" given to CaptureAllFromCamera is not the same as configured camera \"configuredCamera\"")
 
     // Test case where no image or classifications are requested
     capture, err = pf.CaptureAllFromCamera(ctx, "configuredCamera", viscapture.CaptureOptions{}, nil)
-    test.That(t, capture.Image, test.ShouldBeEmpty)
+    test.That(t, capture.Image, test.ShouldBeNil)
     test.That(t, capture.Classifications, test.ShouldBeEmpty)
     test.That(t, err, test.ShouldBeNil)
 
@@ -221,7 +221,9 @@ func TestCaptureAllFromCamera(t *testing.T) {
     pf.triggerFlag.Store(true)
     atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&pf.currImg)), imgPtr)
     capture, err = pf.CaptureAllFromCamera(ctx, "configuredCamera", viscapture.CaptureOptions{ReturnImage: true}, nil)
-    test.That(t, capture.Image, test.ShouldResemble, stubImage)
+    decodedCapture, decErr := capture.Image.Image(ctx)
+    test.That(t, decErr, test.ShouldBeNil)
+    test.That(t, decodedCapture, test.ShouldResemble, stubImage)
     test.That(t, capture.Classifications, test.ShouldBeEmpty)
     test.That(t, err, test.ShouldBeNil)
 
@@ -238,7 +240,9 @@ func TestCaptureAllFromCamera(t *testing.T) {
 
     // Test case where both image and classifications are requested
     capture, err = pf.CaptureAllFromCamera(ctx, "configuredCamera", viscapture.CaptureOptions{ReturnImage: true, ReturnClassifications: true}, nil)
-    test.That(t, capture.Image, test.ShouldResemble, stubImage)
+    decodedCapture, decErr = capture.Image.Image(ctx)
+    test.That(t, decErr, test.ShouldBeNil)
+    test.That(t, decodedCapture, test.ShouldResemble, stubImage)
     test.That(t, capture.Classifications, test.ShouldResemble, expectedClassifications.Classifications)
     test.That(t, err, test.ShouldBeNil)
 }
