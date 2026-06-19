@@ -36,7 +36,7 @@ func TestConfigValidate(t *testing.T) {
 		CameraName: "",
 	}
 	path := "test_path"
-	dependencies, err := cfg.Validate(path)
+	dependencies, _, err := cfg.Validate(path)
 	test.That(t, dependencies, test.ShouldBeNil)
     test.That(t, err, test.ShouldBeNil)
 
@@ -46,7 +46,7 @@ func TestConfigValidate(t *testing.T) {
 		DetectorName: "",
 	}
 	path = "test_path"
-	dependencies, err = cfg.Validate(path)
+	dependencies, _, err = cfg.Validate(path)
 	test.That(t, dependencies, test.ShouldResemble, []string{"camera1"})
 	test.That(t, err, test.ShouldBeNil)
 }
