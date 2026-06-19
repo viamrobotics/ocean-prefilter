@@ -20,7 +20,7 @@ func main() {
 }
 
 func mainWithArgs(ctx context.Context, args []string, logger logging.Logger) (err error) {
-	myMod, err := module.NewModuleFromArgs(ctx, logger)
+	myMod, err := module.NewModuleFromArgs(ctx)
 	if err != nil {
 		return err
 	}

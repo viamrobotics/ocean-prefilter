@@ -14,6 +14,7 @@ import (
 	"github.com/Elvenson/xgboost-go/inference"
 	"github.com/pkg/errors"
 	"go.viam.com/rdk/components/camera"
+	"go.viam.com/rdk/data"
 	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/resource"
 	"go.viam.com/rdk/services/vision"
@@ -63,11 +64,11 @@ type Config struct {
 
 // Validate validates the config and returns implicit dependencies,
 // this Validate checks if the camera and detector(optional) exist for the module's vision model.
-func (cfg *Config) Validate(path string) ([]string, error) {
+func (cfg *Config) Validate(path string) ([]string, []string, error) {
 	if cfg.CameraName == "" {
-		return nil, nil
+		return nil, nil, nil
 	}
-	return []string{cfg.CameraName}, nil
+	return []string{cfg.CameraName}, nil, nil
 }
 
 // prefilter is the main struct for this module. It is a vision service classifier that will return a "TRIGGER" class
@@ -205,25 +206,28 @@ func (pf *prefilter) Reconfigure(ctx context.Context, deps resource.Dependencies
 	return nil
 }
 
-// run sets up a camera stream and then takes new pictures and processes them for anomalies
+// run polls the camera for new pictures and processes them for anomalies
 // at the desired frequency.
 func run(ctx context.Context, rc RunConfig, trigger *atomic.Bool, currImg *atomic.Pointer[image.Image]) error {
 	triggerCount := 0
 	if rc.cam == nil {
 		return errors.Errorf("underlying camera %q is nil, cannot start background stream", rc.camName)
 	}
-	stream, err := rc.cam.Stream(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer stream.Close(ctx)
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		default:
 			start := time.Now()
-			img, release, err := stream.Next(ctx)
+			imgs, _, err := rc.cam.Images(ctx, nil, nil)
+			if err != nil {
+				trigger.Store(false)
+				return err
+			}
+			if len(imgs) == 0 {
+				continue
+			}
+			img, err := imgs[0].Image(ctx)
 			if err != nil {
 				trigger.Store(false)
 				return err
@@ -243,7 +247,6 @@ func run(ctx context.Context, rc RunConfig, trigger *atomic.Bool, currImg *atomi
 			} else {
 				trigger.Store(false)
 			}
-			release()
 			if rc.debug && trigger.Load() {
 				rc.logger.Info("TRIGGER is true")
 			}
@@ -269,7 +272,7 @@ func (pf *prefilter) DetectionsFromCamera(
 	return nil, errUnimplemented
 }
 
-func (pf *prefilter) Detections(ctx context.Context, img image.Image, extra map[string]interface{}) ([]objdet.Detection, error) {
+func (pf *prefilter) Detections(ctx context.Context, img *camera.NamedImage, extra map[string]interface{}) ([]objdet.Detection, error) {
 	return nil, errUnimplemented
 }
 
@@ -297,10 +300,14 @@ func (pf *prefilter) ClassificationsFromCamera(
 	}
 }
 
-func (pf *prefilter) Classifications(ctx context.Context, img image.Image,
+func (pf *prefilter) Classifications(ctx context.Context, img *camera.NamedImage,
 	n int, extra map[string]interface{},
 ) (classification.Classifications, error) {
-	isTriggered, err := MakeInference(img, pf.rc)
+	decodedImg, err := img.Image(ctx)
+	if err != nil {
+		return nil, err
+	}
+	isTriggered, err := MakeInference(decodedImg, pf.rc)
 	if err != nil {
 		pf.logger.Infow("classification error", "error", err.Error())
 	}
@@ -343,7 +350,9 @@ func (pf *prefilter) CaptureAllFromCamera(
 				return viscapture.VisCapture{}, errors.Errorf("Camera name %q given to CaptureAllFromCamera is not the same as configured camera %q", cameraName, pf.camName)
 			}
 			storedImg := pf.currImg.Load()
-			img = *storedImg
+			if storedImg != nil {
+				img = *storedImg
+			}
 		}
 		if opt.ReturnClassifications {
 			if pf.triggerFlag.Load() {
@@ -352,7 +361,15 @@ func (pf *prefilter) CaptureAllFromCamera(
 			}
 		}
 	}
-	return viscapture.VisCapture{Image: img, Classifications: classification.Classifications(cls)}, nil
+	var namedImg *camera.NamedImage
+	if img != nil {
+		ni, err := camera.NamedImageFromImage(img, pf.camName, "", data.Annotations{})
+		if err != nil {
+			return viscapture.VisCapture{}, err
+		}
+		namedImg = &ni
+	}
+	return viscapture.VisCapture{Image: namedImg, Classifications: classification.Classifications(cls)}, nil
 }
 
 func (pf *prefilter) Close(ctx context.Context) error {
