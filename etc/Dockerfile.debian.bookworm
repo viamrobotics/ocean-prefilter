@@ -41,17 +41,10 @@ RUN apt-get -y --no-install-recommends install -t llvm-toolchain-bookworm-15 \
 RUN mkdir -p /root/opt/src
 
 # install Go
+ENV GO_VERSION=1.26.4
 
-RUN if [ "$BASE_TAG" = "amd64" ]; then \
-    wget https://go.dev/dl/go1.21.13.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.21.13.linux-amd64.tar.gz; \
-    elif [ "$BASE_TAG" = "arm64" ]; then \
-    wget https://go.dev/dl/go1.21.13.linux-arm64.tar.gz && \
-    tar -C /usr/local -xzf go1.21.13.linux-arm64.tar.gz; \
-    else \
-        echo "Unsupported architecture $BASE_TAG"; \
-        exit 1; \
-    fi
+RUN wget --quiet https://go.dev/dl/go$GO_VERSION.linux-$(dpkg --print-architecture).tar.gz && \
+	tar -C /usr/local -xzf go*.linux-*.tar.gz
 
 RUN export PATH=/usr/local/go/bin:$PATH
 
@@ -125,7 +118,6 @@ RUN cd /root/opt/src && \
 # install appimage-builder
 RUN pip3 install --break-system-packages git+https://github.com/AppImageCrafters/appimage-builder.git@61c8ddde9ef44b85d7444bbe79d80b44a6a5576d
 
-# golangci-lint installation here
-RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b /usr/local/bin v1.59.1
+RUN curl -sSfL https://golangci-lint.run/install.sh | sh -s v2.12.2
 
 ENV PATH="/usr/local/go/bin:${PATH}"
