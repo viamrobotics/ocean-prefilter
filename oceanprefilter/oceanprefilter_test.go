@@ -8,6 +8,8 @@ import (
 	"testing"
 	"unsafe"
     "os"
+	"go.viam.com/rdk/components/camera"
+	"go.viam.com/rdk/data"
 	"go.viam.com/rdk/services/vision"
 	"go.viam.com/rdk/vision/classification"
 	"go.viam.com/rdk/vision/viscapture"
@@ -122,15 +124,17 @@ func TestClassifications(t *testing.T) {
 	defer f.Close()
 	img, _, err := image.Decode(f)
 	test.That(t, err, test.ShouldBeNil)
+	namedImg, err := camera.NamedImageFromImage(img, "configuredCamera", "", data.Annotations{})
+	test.That(t, err, test.ShouldBeNil)
 
-    classifications, err := pf.Classifications(ctx, img, 1, nil)
+    classifications, err := pf.Classifications(ctx, &namedImg, 1, nil)
     test.That(t, err, test.ShouldBeNil)
     test.That(t, classifications, test.ShouldNotBeNil)
 
     // Test case where context is canceled
     cancelledCtx, cancel := context.WithCancel(ctx)
     cancel()
-    classifications, err = pf.Classifications(cancelledCtx, img, 1, nil)
+    classifications, err = pf.Classifications(cancelledCtx, &namedImg, 1, nil)
     test.That(t, err, test.ShouldBeNil)
     test.That(t, classifications, test.ShouldNotBeNil)
 }
