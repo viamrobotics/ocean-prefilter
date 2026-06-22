@@ -39,6 +39,8 @@ jobs:
         with:
           context: .
           file: etc/Dockerfile.debian.bookworm
+          build-args: |
+            BASE_TAG=${{ matrix.tag }}
           push: ${{ inputs.push }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
